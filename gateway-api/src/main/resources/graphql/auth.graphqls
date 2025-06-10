@@ -1,0 +1,17 @@
+type Mutation {
+    register(input: CreateAccountInput!): AuthPayload!
+    login(email: String!, password: String!): AuthPayload!
+}
+
+input CreateAccountInput {
+    email: String!
+    password: String!
+}
+
+type AuthPayload {
+    token: String!
+}
+
+type Query {
+    _empty: String
+}
