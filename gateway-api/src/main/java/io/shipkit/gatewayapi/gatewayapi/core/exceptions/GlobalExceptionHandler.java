@@ -1,122 +1,191 @@
 package io.shipkit.gatewayapi.gatewayapi.core.exceptions;
 
-import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+
+import graphql.GraphQLError;
+import graphql.GraphqlErrorBuilder;
+import graphql.schema.DataFetchingEnvironment;
+
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.graphql.data.method.annotation.GraphQlExceptionHandler;
+import org.springframework.graphql.execution.ErrorType;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-@RestControllerAdvice
+@ControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final String STATUS_CODE = "statusCode";
-    private static final String MESSAGE = "message";
-    private static final String TIMESTAMP = "timestamp";
+    private static final String ERROR_KEY = "error";
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Map<String, String> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+    @GraphQlExceptionHandler(MethodArgumentNotValidException.class)
+    public GraphQLError handleMethodArgNotValid(
+            MethodArgumentNotValidException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach(err -> {
+            String field = ((FieldError) err).getField();
+            String msg = err.getDefaultMessage();
+            fieldErrors.put(field, msg);
         });
-        return errors;
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.BAD_REQUEST.value());
+        error.setMessage("Input validation error");
+        error.setTimestamp(new Date());
+        error.setErrors(fieldErrors);
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.BAD_REQUEST)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 
-    @ExceptionHandler(AlreadyExistsException.class)
-    public ResponseEntity<ErrorObject> handleAlreadyExistsException(
-            AlreadyExistsException ex) {
-        ErrorObject errorObject = new ErrorObject();
-
-        errorObject.setStatusCode(HttpStatus.CONFLICT.value());
-        errorObject.setMessage(ex.getMessage());
-        errorObject.setTimestamp(new Date());
-
-        return new ResponseEntity<>(
-                errorObject,
-                HttpStatus.CONFLICT
-        );
+    @GraphQlExceptionHandler(ConstraintViolationException.class)
+    public GraphQLError handleConstraintViolation(
+            ConstraintViolationException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        Map<String, String> violations = new HashMap<>();
+        for (ConstraintViolation<?> cv : ex.getConstraintViolations()) {
+            violations.put(cv.getPropertyPath().toString(), cv.getMessage());
+        }
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.BAD_REQUEST.value());
+        error.setMessage("Validation failed");
+        error.setTimestamp(new Date());
+        error.setErrors(violations);
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.BAD_REQUEST)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 
-    @ExceptionHandler(InternalServerException.class)
-    public ResponseEntity<ErrorObject> handleInternalServerException(
-            InternalServerException ex) {
-        ErrorObject errorObject = new ErrorObject();
-
-        errorObject.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        errorObject.setMessage(ex.getMessage());
-        errorObject.setTimestamp(new Date());
-
-        return new ResponseEntity<>(
-                errorObject,
-                HttpStatus.INTERNAL_SERVER_ERROR
-        );
+    @GraphQlExceptionHandler(AlreadyExistsException.class)
+    public GraphQLError handleAlreadyExists(
+            AlreadyExistsException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.CONFLICT.value());
+        error.setMessage(ex.getMessage());
+        error.setTimestamp(new Date());
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.BAD_REQUEST)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorObject> handleResourceNotFoundException(
-            ResourceNotFoundException ex
-    ) {
-        ErrorObject errorObject = new ErrorObject();
-
-        errorObject.setStatusCode(HttpStatus.NOT_FOUND.value());
-        errorObject.setMessage(ex.getMessage());
-        errorObject.setTimestamp(new Date());
-
-        return new ResponseEntity<>(
-                errorObject,
-                HttpStatus.NOT_FOUND
-        );
+    @GraphQlExceptionHandler(InternalServerException.class)
+    public GraphQLError handleInternalServer(
+            InternalServerException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        error.setMessage(ex.getMessage());
+        error.setTimestamp(new Date());
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.INTERNAL_ERROR)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 
-    @ExceptionHandler(NoResourceFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Map<String, Object> handleNoResourceFoundException(NoResourceFoundException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put(STATUS_CODE, HttpStatus.NOT_FOUND.value());
-        response.put(MESSAGE, "Resource not found");
-        response.put(TIMESTAMP, Instant.now().toString());
-        return response;
+    @GraphQlExceptionHandler(ResourceNotFoundException.class)
+    public GraphQLError handleResourceNotFound(
+            ResourceNotFoundException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.NOT_FOUND.value());
+        error.setMessage(ex.getMessage());
+        error.setTimestamp(new Date());
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.NOT_FOUND)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<Map<String, Object>> handleBadRequestException(BadRequestException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put(STATUS_CODE, HttpStatus.BAD_REQUEST.value());
-        response.put(MESSAGE, ex.getMessage());
-        response.put(TIMESTAMP, Instant.now().toString());
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    @GraphQlExceptionHandler(NoResourceFoundException.class)
+    public GraphQLError handleNoResourceFound(
+            NoResourceFoundException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.NOT_FOUND.value());
+        error.setMessage("Resource not found");
+        error.setTimestamp(new Date());
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.NOT_FOUND)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ErrorObject> handleUnauthorizedException(Exception ex) {
-        ErrorObject errorObject = new ErrorObject();
-
-        errorObject.setStatusCode(HttpStatus.UNAUTHORIZED.value());
-        errorObject.setMessage(ex.getMessage());
-        errorObject.setTimestamp(new Date());
-
-        return new ResponseEntity<>(
-                errorObject,
-                HttpStatus.UNAUTHORIZED
-        );
+    @GraphQlExceptionHandler(BadRequestException.class)
+    public GraphQLError handleBadRequest(
+            BadRequestException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.BAD_REQUEST.value());
+        error.setMessage(ex.getMessage());
+        error.setTimestamp(new Date());
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.BAD_REQUEST)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put(STATUS_CODE, HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put(MESSAGE, "An unexpected error occurred." + ex.getMessage());
-        response.put(TIMESTAMP, Instant.now().toString());
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    @GraphQlExceptionHandler(UnauthorizedException.class)
+    public GraphQLError handleUnauthorized(
+            UnauthorizedException ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.UNAUTHORIZED.value());
+        error.setMessage(ex.getMessage());
+        error.setTimestamp(new Date());
+        return builder
+                .message(error.getMessage())
+                .errorType(ErrorType.UNAUTHORIZED)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
+    }
+
+    @GraphQlExceptionHandler(Exception.class)
+    public GraphQLError handleGeneric(
+            Exception ex,
+            DataFetchingEnvironment env,
+            GraphqlErrorBuilder<?> builder) {
+        ErrorObject error = new ErrorObject();
+        error.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        error.setMessage(ex.getMessage());
+        error.setTimestamp(new Date());
+        return builder
+                .message("An unexpected error occurred: " + error.getMessage())
+                .errorType(ErrorType.INTERNAL_ERROR)
+                .extensions(Map.of(ERROR_KEY, error))
+                .path(env.getExecutionStepInfo().getPath())
+                .build();
     }
 }

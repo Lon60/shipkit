@@ -1,0 +1,5 @@
+mutation register($input: CreateAccountInput!) {
+    register(input: $input) {
+        token
+    }
+}
