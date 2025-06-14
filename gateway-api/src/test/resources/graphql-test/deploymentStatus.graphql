@@ -1,0 +1,7 @@
+query deploymentStatus($id: ID!) {
+    deploymentStatus(id: $id) {
+        uuid
+        state
+        status
+    }
+} 

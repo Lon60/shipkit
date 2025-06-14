@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package docker_control;
+
+option java_multiple_files = true;
+option java_package = "docker_control";
+option objc_class_prefix = "DC";
+
+service DockerControlService {
+  rpc StartCompose(StartComposeRequest) returns (ActionResult);
+  
+  rpc StopApp(StopAppRequest) returns (ActionResult);
+  
+  rpc GetStatus(GetStatusRequest) returns (AppStatus);
+}
+
+message StartComposeRequest {
+  string uuid = 1;
+  string compose_yaml = 2;
+}
+
+message StopAppRequest {
+  string uuid = 1;
+}
+
+message GetStatusRequest {
+  string uuid = 1;
+}
+
+message ActionResult {
+  int32 status = 1;
+  string message = 2;
+  string details = 3;
+}
+
+message AppStatus {
+  string uuid = 1;
+  AppState state = 2;
+  repeated ContainerStatus containers = 3;
+  string message = 4;
+  int32 status = 5;
+}
+
+enum AppState {
+  UNKNOWN = 0;
+  RUNNING = 1;
+  STOPPED = 2;
+  STARTING = 3;
+  STOPPING = 4;
+  ERROR = 5;
+}
+
+message ContainerStatus {
+  string name = 1;
+  string state = 2;
+  string health = 3;
+  repeated string ports = 4;
+} 

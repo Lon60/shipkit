@@ -1,0 +1,30 @@
+type Deployment {
+    id: ID!
+    composeYaml: String!
+    createdAt: String!
+}
+
+type ContainerStatus {
+    name: String!
+    state: String!
+    health: String
+    ports: [String!]!
+}
+
+type DeploymentStatus {
+    uuid: String!
+    state: String!
+    message: String
+    status: Int!
+    containers: [ContainerStatus!]!
+}
+
+extend type Mutation {
+    startDeployment(composeYaml: String!): Deployment!
+    stopDeployment(id: ID!): Boolean!
+}
+
+extend type Query {
+    deploymentStatus(id: ID!): DeploymentStatus!
+    deployments: [Deployment!]!
+} 

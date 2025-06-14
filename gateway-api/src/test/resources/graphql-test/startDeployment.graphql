@@ -1,0 +1,5 @@
+mutation startDeployment($yaml: String!) {
+    startDeployment(composeYaml: $yaml) {
+        id
+    }
+} 
