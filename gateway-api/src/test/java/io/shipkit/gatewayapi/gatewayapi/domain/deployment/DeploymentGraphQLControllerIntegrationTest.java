@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.graphql.test.tester.GraphQlTester;
 import org.springframework.graphql.test.tester.HttpGraphQlTester;
@@ -43,6 +44,7 @@ class DeploymentGraphQLControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser
     void shouldStartDeployment() {
         when(grpcClient.startCompose(any(), any()))
                 .thenReturn(ActionResult.newBuilder().setStatus(0).setMessage("started").build());
@@ -59,6 +61,7 @@ class DeploymentGraphQLControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser
     void shouldReturnDeploymentStatus() {
         // capture UUID used during start
         java.util.concurrent.atomic.AtomicReference<String> uuidRef = new java.util.concurrent.atomic.AtomicReference<>();

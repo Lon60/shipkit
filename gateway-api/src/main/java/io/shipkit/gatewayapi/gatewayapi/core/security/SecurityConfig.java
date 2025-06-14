@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -22,6 +23,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.ArrayList;
 
 @Configuration
 @EnableMethodSecurity
@@ -29,6 +31,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final Environment environment;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -46,6 +49,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        List<String> permitAllPaths = new ArrayList<>(Arrays.asList(
+                "/graphql",
+                "/actuator/**"
+        ));
+
+        if (Arrays.asList(environment.getActiveProfiles()).contains("dev") || 
+            Arrays.asList(environment.getActiveProfiles()).contains("development")) {
+            permitAllPaths.add("/graphiql/**");
+            permitAllPaths.add("/playground/**");
+        }
+
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
@@ -53,13 +67,9 @@ public class SecurityConfig {
                         sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->
                         auth
-                                .requestMatchers(
-                                        "/graphiql/**",
-                                        "/playground/**",
-                                        "/graphql",
-                                        "/actuator/**"
-                                ).permitAll()
-                                .anyRequest().permitAll()
+                                .requestMatchers(permitAllPaths.toArray(new String[0]))
+                                .permitAll()
+                                .anyRequest().authenticated()
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
