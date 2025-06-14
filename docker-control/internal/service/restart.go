@@ -1,0 +1,48 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	pb "github.com/shipkit/docker-control/proto"
+	"go.uber.org/zap"
+)
+
+func (s *DockerControlService) RestartApp(ctx context.Context, req *pb.RestartAppRequest) (*pb.ActionResult, error) {
+	deploymentDir, err := s.deploymentPath(req.Uuid)
+	if err != nil {
+		return &pb.ActionResult{
+			Success:   false,
+			Message:   err.Error(),
+			ErrorCode: "INVALID_UUID",
+		}, nil
+	}
+
+	s.logger.Info("Restarting app", zap.String("uuid", req.Uuid))
+
+	if _, err := os.Stat(deploymentDir); os.IsNotExist(err) {
+		return &pb.ActionResult{
+			Success:   false,
+			Message:   "Deployment not found",
+			ErrorCode: "DEPLOYMENT_NOT_FOUND",
+		}, nil
+	}
+
+	if err := s.executor.ComposeRestart(ctx, deploymentDir); err != nil {
+		s.logger.Error("Failed to restart app",
+			zap.String("uuid", req.Uuid),
+			zap.Error(err))
+		return &pb.ActionResult{
+			Success:   false,
+			Message:   fmt.Sprintf("Failed to restart app: %v", err),
+			ErrorCode: "COMPOSE_RESTART_FAILED",
+		}, nil
+	}
+
+	s.logger.Info("Successfully restarted app", zap.String("uuid", req.Uuid))
+	return &pb.ActionResult{
+		Success: true,
+		Message: "App restarted successfully",
+	}, nil
+}

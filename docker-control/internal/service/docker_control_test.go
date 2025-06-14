@@ -75,6 +75,19 @@ func TestDockerControlService_StartCompose(t *testing.T) {
 				ErrorCode: "COMPOSE_UP_FAILED",
 			},
 		},
+		{
+			name: "invalid uuid with path traversal",
+			req: &pb.StartComposeRequest{
+				Uuid:        "../etc/passwd",
+				ComposeYaml: "version: '3'",
+			},
+			mockSetup: func(mock *executor.MockDockerExecutor) {},
+			expectedResult: &pb.ActionResult{
+				Success:   false,
+				Message:   "UUID must not contain path separators",
+				ErrorCode: "INVALID_UUID",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -164,6 +177,19 @@ func TestDockerControlService_StopApp(t *testing.T) {
 				Success:   false,
 				Message:   "Failed to stop app: mock compose down failed",
 				ErrorCode: "COMPOSE_DOWN_FAILED",
+			},
+		},
+		{
+			name: "invalid uuid with path traversal",
+			req: &pb.StopAppRequest{
+				Uuid: "../../malicious",
+			},
+			setupDir:  false,
+			mockSetup: func(mock *executor.MockDockerExecutor) {},
+			expectedResult: &pb.ActionResult{
+				Success:   false,
+				Message:   "UUID must not contain path separators",
+				ErrorCode: "INVALID_UUID",
 			},
 		},
 	}
