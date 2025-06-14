@@ -1,8 +1,0 @@
-services:
-  pingvin-share:
-    image: stonith404/pingvin-share
-    restart: unless-stopped
-    ports:
-      - 3000:3000
-    environment:
-      - TRUST_PROXY=false 
