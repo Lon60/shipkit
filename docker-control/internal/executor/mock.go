@@ -6,11 +6,10 @@ import (
 )
 
 type MockDockerExecutor struct {
-	ShouldFailUp      bool
-	ShouldFailDown    bool
-	ShouldFailRestart bool
-	ShouldFailStatus  bool
-	StatusResponse    *ComposeStatus
+	ShouldFailUp     bool
+	ShouldFailDown   bool
+	ShouldFailStatus bool
+	StatusResponse   *ComposeStatus
 }
 
 func NewMockDockerExecutor() *MockDockerExecutor {
@@ -28,28 +27,21 @@ func NewMockDockerExecutor() *MockDockerExecutor {
 	}
 }
 
-func (m *MockDockerExecutor) ComposeUp(ctx context.Context, workingDir string) error {
+func (m *MockDockerExecutor) ComposeUp(ctx context.Context, project string, yaml string) error {
 	if m.ShouldFailUp {
 		return errors.New("mock compose up failed")
 	}
 	return nil
 }
 
-func (m *MockDockerExecutor) ComposeDown(ctx context.Context, workingDir string) error {
+func (m *MockDockerExecutor) ComposeDown(ctx context.Context, project string) error {
 	if m.ShouldFailDown {
 		return errors.New("mock compose down failed")
 	}
 	return nil
 }
 
-func (m *MockDockerExecutor) ComposeRestart(ctx context.Context, workingDir string) error {
-	if m.ShouldFailRestart {
-		return errors.New("mock compose restart failed")
-	}
-	return nil
-}
-
-func (m *MockDockerExecutor) ComposeStatus(ctx context.Context, workingDir string) (*ComposeStatus, error) {
+func (m *MockDockerExecutor) ComposeStatus(ctx context.Context, project string) (*ComposeStatus, error) {
 	if m.ShouldFailStatus {
 		return nil, errors.New("mock compose status failed")
 	}

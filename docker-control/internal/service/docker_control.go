@@ -14,30 +14,34 @@ import (
 
 type DockerControlService struct {
 	pb.UnimplementedDockerControlServiceServer
-	executor       executor.DockerExecutor
-	logger         *zap.Logger
-	deploymentsDir string
+	executor executor.DockerExecutor
+	logger   *zap.Logger
 }
 
-var uuidRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+var (
+	uuidRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
-func NewDockerControlService(exec executor.DockerExecutor, logger *zap.Logger, deploymentsDir string) *DockerControlService {
+	ErrUUIDRequired       = errors.New("UUID is required")
+	ErrUUIDInvalidChars   = errors.New("UUID contains invalid characters")
+	ErrUUIDPathSeparators = errors.New("UUID must not contain path separators")
+)
+
+func NewDockerControlService(exec executor.DockerExecutor, logger *zap.Logger) *DockerControlService {
 	return &DockerControlService{
-		executor:       exec,
-		logger:         logger,
-		deploymentsDir: deploymentsDir,
+		executor: exec,
+		logger:   logger,
 	}
 }
 
 func (s *DockerControlService) deploymentPath(uuid string) (string, error) {
 	if uuid == "" {
-		return "", errors.New("UUID is required")
+		return "", ErrUUIDRequired
 	}
 	if strings.Contains(uuid, string(filepath.Separator)) {
-		return "", errors.New("UUID must not contain path separators")
+		return "", ErrUUIDPathSeparators
 	}
 	if !uuidRegex.MatchString(uuid) {
-		return "", errors.New("UUID contains invalid characters")
+		return "", ErrUUIDInvalidChars
 	}
-	return filepath.Join(s.deploymentsDir, uuid), nil
+	return "", nil
 }

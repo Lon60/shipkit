@@ -30,7 +30,7 @@ func TestMockDockerExecutor_ComposeUp(t *testing.T) {
 			mock := NewMockDockerExecutor()
 			mock.ShouldFailUp = tt.shouldFail
 
-			err := mock.ComposeUp(context.Background(), "/tmp/test")
+			err := mock.ComposeUp(context.Background(), "test-project", "version: '3'\nservices:{}")
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -65,46 +65,11 @@ func TestMockDockerExecutor_ComposeDown(t *testing.T) {
 			mock := NewMockDockerExecutor()
 			mock.ShouldFailDown = tt.shouldFail
 
-			err := mock.ComposeDown(context.Background(), "/tmp/test")
+			err := mock.ComposeDown(context.Background(), "test-project")
 
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "mock compose down failed")
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestMockDockerExecutor_ComposeRestart(t *testing.T) {
-	tests := []struct {
-		name        string
-		shouldFail  bool
-		expectError bool
-	}{
-		{
-			name:        "successful compose restart",
-			shouldFail:  false,
-			expectError: false,
-		},
-		{
-			name:        "failed compose restart",
-			shouldFail:  true,
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mock := NewMockDockerExecutor()
-			mock.ShouldFailRestart = tt.shouldFail
-
-			err := mock.ComposeRestart(context.Background(), "/tmp/test")
-
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "mock compose restart failed")
 			} else {
 				assert.NoError(t, err)
 			}
@@ -135,7 +100,7 @@ func TestMockDockerExecutor_ComposeStatus(t *testing.T) {
 			mock := NewMockDockerExecutor()
 			mock.ShouldFailStatus = tt.shouldFail
 
-			status, err := mock.ComposeStatus(context.Background(), "/tmp/test")
+			status, err := mock.ComposeStatus(context.Background(), "test-project")
 
 			if tt.expectError {
 				assert.Error(t, err)

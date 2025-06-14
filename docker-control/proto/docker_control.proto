@@ -9,10 +9,6 @@ service DockerControlService {
   
   rpc StopApp(StopAppRequest) returns (ActionResult);
   
-  rpc RestartApp(RestartAppRequest) returns (ActionResult);
-  
-  rpc UpdateCompose(UpdateComposeRequest) returns (ActionResult);
-  
   rpc GetStatus(GetStatusRequest) returns (AppStatus);
 }
 
@@ -25,23 +21,14 @@ message StopAppRequest {
   string uuid = 1;
 }
 
-message RestartAppRequest {
-  string uuid = 1;
-}
-
-message UpdateComposeRequest {
-  string uuid = 1;
-  string compose_yaml = 2;
-}
-
 message GetStatusRequest {
   string uuid = 1;
 }
 
 message ActionResult {
-  bool success = 1;
+  int32 status = 1;
   string message = 2;
-  string error_code = 3;
+  string details = 3;
 }
 
 message AppStatus {
@@ -49,6 +36,7 @@ message AppStatus {
   AppState state = 2;
   repeated ContainerStatus containers = 3;
   string message = 4;
+  int32 status = 5;
 }
 
 enum AppState {

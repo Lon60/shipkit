@@ -3,10 +3,9 @@ package executor
 import "context"
 
 type DockerExecutor interface {
-	ComposeUp(ctx context.Context, workingDir string) error
-	ComposeDown(ctx context.Context, workingDir string) error
-	ComposeRestart(ctx context.Context, workingDir string) error
-	ComposeStatus(ctx context.Context, workingDir string) (*ComposeStatus, error)
+	ComposeUp(ctx context.Context, project string, yaml string) error
+	ComposeDown(ctx context.Context, project string) error
+	ComposeStatus(ctx context.Context, project string) (*ComposeStatus, error)
 }
 
 type ComposeStatus struct {

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	pb "github.com/shipkit/docker-control/proto"
@@ -11,26 +10,19 @@ import (
 )
 
 func (s *DockerControlService) GetStatus(ctx context.Context, req *pb.GetStatusRequest) (*pb.AppStatus, error) {
-	deploymentDir, err := s.deploymentPath(req.Uuid)
+	_, err := s.deploymentPath(req.Uuid)
 	if err != nil {
 		return &pb.AppStatus{
 			Uuid:    req.Uuid,
 			State:   pb.AppState_ERROR,
 			Message: err.Error(),
+			Status:  1,
 		}, nil
 	}
 
 	s.logger.Info("Getting status", zap.String("uuid", req.Uuid))
 
-	if _, err := os.Stat(deploymentDir); os.IsNotExist(err) {
-		return &pb.AppStatus{
-			Uuid:    req.Uuid,
-			State:   pb.AppState_UNKNOWN,
-			Message: "Deployment not found",
-		}, nil
-	}
-
-	status, err := s.executor.ComposeStatus(ctx, deploymentDir)
+	status, err := s.executor.ComposeStatus(ctx, req.Uuid)
 	if err != nil {
 		s.logger.Error("Failed to get status",
 			zap.String("uuid", req.Uuid),
@@ -39,6 +31,7 @@ func (s *DockerControlService) GetStatus(ctx context.Context, req *pb.GetStatusR
 			Uuid:    req.Uuid,
 			State:   pb.AppState_ERROR,
 			Message: fmt.Sprintf("Failed to get status: %v", err),
+			Status:  1,
 		}, nil
 	}
 
@@ -68,5 +61,6 @@ func (s *DockerControlService) GetStatus(ctx context.Context, req *pb.GetStatusR
 		State:      appState,
 		Containers: containers,
 		Message:    "Status retrieved successfully",
+		Status:     0,
 	}, nil
 }

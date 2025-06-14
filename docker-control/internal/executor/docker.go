@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,87 +15,83 @@ func NewDockerComposeExecutor() *DockerComposeExecutor {
 	return &DockerComposeExecutor{}
 }
 
-func (e *DockerComposeExecutor) ComposeUp(ctx context.Context, workingDir string) error {
-	cmd := exec.CommandContext(ctx, "docker", "compose", "up", "-d")
-	cmd.Dir = workingDir
-
+func (e *DockerComposeExecutor) ComposeUp(ctx context.Context, project string, yaml string) error {
+	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", project, "-f", "-", "up", "-d")
+	cmd.Stdin = bytes.NewBufferString(yaml)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("docker compose up failed: %w - output: %s", err, string(output))
 	}
-
 	return nil
 }
 
-func (e *DockerComposeExecutor) ComposeDown(ctx context.Context, workingDir string) error {
-	cmd := exec.CommandContext(ctx, "docker", "compose", "down")
-	cmd.Dir = workingDir
-
+func (e *DockerComposeExecutor) ComposeDown(ctx context.Context, project string) error {
+	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", project, "down", "--remove-orphans")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("docker compose down failed: %w - output: %s", err, string(output))
 	}
-
 	return nil
 }
 
-func (e *DockerComposeExecutor) ComposeRestart(ctx context.Context, workingDir string) error {
-	cmd := exec.CommandContext(ctx, "docker", "compose", "restart")
-	cmd.Dir = workingDir
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("docker compose restart failed: %w - output: %s", err, string(output))
-	}
-
-	return nil
-}
-
-func (e *DockerComposeExecutor) ComposeStatus(ctx context.Context, workingDir string) (*ComposeStatus, error) {
-	cmd := exec.CommandContext(ctx, "docker", "compose", "ps", "--format", "json")
-	cmd.Dir = workingDir
-
+func (e *DockerComposeExecutor) ComposeStatus(ctx context.Context, project string) (*ComposeStatus, error) {
+	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", project, "ps", "--format", "json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("docker compose ps failed: %w - output: %s", err, string(output))
 	}
+	trimmed := strings.TrimSpace(string(output))
 
 	var services []ServiceStatus
-	if len(output) > 0 {
-		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-		for _, line := range lines {
+
+	var arr []map[string]any
+	if json.Unmarshal([]byte(trimmed), &arr) == nil {
+		for _, elem := range arr {
+			services = append(services, mapToService(elem))
+		}
+	} else {
+		for _, line := range strings.Split(trimmed, "\n") {
+			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
 			}
-
-			var service struct {
-				Name       string `json:"Name"`
-				State      string `json:"State"`
-				Health     string `json:"Health"`
-				Publishers []struct {
-					PublishedPort int    `json:"PublishedPort"`
-					TargetPort    int    `json:"TargetPort"`
-					Protocol      string `json:"Protocol"`
-				} `json:"Publishers"`
-			}
-
-			if err := json.Unmarshal([]byte(line), &service); err != nil {
+			var m map[string]any
+			if json.Unmarshal([]byte(line), &m) != nil {
 				continue
 			}
-
-			var ports []string
-			for _, pub := range service.Publishers {
-				ports = append(ports, fmt.Sprintf("%d:%d/%s", pub.PublishedPort, pub.TargetPort, pub.Protocol))
-			}
-
-			services = append(services, ServiceStatus{
-				Name:   service.Name,
-				State:  service.State,
-				Health: service.Health,
-				Ports:  ports,
-			})
+			services = append(services, mapToService(m))
 		}
 	}
 
 	return &ComposeStatus{Services: services}, nil
+}
+
+func mapToService(elem map[string]any) ServiceStatus {
+	var name, state, health string
+	var ports []string
+
+	if n, ok := elem["Name"].(string); ok {
+		name = n
+	}
+	if s, ok := elem["State"].(string); ok {
+		state = s
+	}
+	if h, ok := elem["Health"].(string); ok {
+		health = h
+	}
+
+	if pubs, ok := elem["Publishers"].([]any); ok {
+		for _, p := range pubs {
+			if mp, ok := p.(map[string]any); ok {
+				if pubPort, ok := mp["PublishedPort"].(float64); ok {
+					if tgtPort, ok := mp["TargetPort"].(float64); ok {
+						if proto, ok := mp["Protocol"].(string); ok {
+							ports = append(ports, fmt.Sprintf("%.0f:%.0f/%s", pubPort, tgtPort, proto))
+						}
+					}
+				}
+			}
+		}
+	}
+	return ServiceStatus{Name: name, State: state, Health: health, Ports: ports}
 }

@@ -3,46 +3,85 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
+	"strings"
 
 	pb "github.com/shipkit/docker-control/proto"
 	"go.uber.org/zap"
 )
 
 func (s *DockerControlService) StopApp(ctx context.Context, req *pb.StopAppRequest) (*pb.ActionResult, error) {
-	deploymentDir, err := s.deploymentPath(req.Uuid)
+	_, err := s.deploymentPath(req.Uuid)
 	if err != nil {
 		return &pb.ActionResult{
-			Success:   false,
-			Message:   err.Error(),
-			ErrorCode: "INVALID_UUID",
+			Status:  1,
+			Message: err.Error(),
+			Details: "UUID validation failed",
 		}, nil
 	}
 
 	s.logger.Info("Stopping app", zap.String("uuid", req.Uuid))
 
-	if _, err := os.Stat(deploymentDir); os.IsNotExist(err) {
+	status, err := s.executor.ComposeStatus(ctx, req.Uuid)
+	if err != nil {
+		s.logger.Error("Failed to check app status before stopping",
+			zap.String("uuid", req.Uuid),
+			zap.Error(err))
 		return &pb.ActionResult{
-			Success:   false,
-			Message:   "Deployment not found",
-			ErrorCode: "DEPLOYMENT_NOT_FOUND",
+			Status:  1,
+			Message: "Failed to check app status",
+			Details: err.Error(),
 		}, nil
 	}
 
-	if err := s.executor.ComposeDown(ctx, deploymentDir); err != nil {
+	s.logger.Debug("Status check result",
+		zap.String("uuid", req.Uuid),
+		zap.Int("service_count", len(status.Services)))
+
+	if len(status.Services) == 0 {
+		s.logger.Info("App has no services", zap.String("uuid", req.Uuid))
+		return &pb.ActionResult{
+			Status:  1,
+			Message: "App not found",
+			Details: fmt.Sprintf("Project %s has no services or does not exist", req.Uuid),
+		}, nil
+	}
+
+	hasRunning := false
+	for _, service := range status.Services {
+		s.logger.Debug("Service status",
+			zap.String("uuid", req.Uuid),
+			zap.String("service", service.Name),
+			zap.String("state", service.State))
+		if strings.Contains(strings.ToLower(service.State), "running") {
+			hasRunning = true
+			break
+		}
+	}
+
+	if !hasRunning {
+		s.logger.Info("App is not running", zap.String("uuid", req.Uuid))
+		return &pb.ActionResult{
+			Status:  1,
+			Message: "App is not running",
+			Details: fmt.Sprintf("Project %s has no running containers", req.Uuid),
+		}, nil
+	}
+
+	if err := s.executor.ComposeDown(ctx, req.Uuid); err != nil {
 		s.logger.Error("Failed to stop app",
 			zap.String("uuid", req.Uuid),
 			zap.Error(err))
 		return &pb.ActionResult{
-			Success:   false,
-			Message:   fmt.Sprintf("Failed to stop app: %v", err),
-			ErrorCode: "COMPOSE_DOWN_FAILED",
+			Status:  1,
+			Message: "Failed to stop app",
+			Details: err.Error(),
 		}, nil
 	}
 
 	s.logger.Info("Successfully stopped app", zap.String("uuid", req.Uuid))
 	return &pb.ActionResult{
-		Success: true,
+		Status:  0,
 		Message: "App stopped successfully",
+		Details: fmt.Sprintf("Project %s has been stopped", req.Uuid),
 	}, nil
 }

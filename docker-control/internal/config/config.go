@@ -6,6 +6,12 @@ import (
 	"path/filepath"
 )
 
+const (
+	DefaultPort           = "50051"
+	DefaultDeploymentsDir = "./deployments"
+	DefaultLogLevel       = "info"
+)
+
 type Config struct {
 	Port           string
 	DeploymentsDir string
@@ -14,9 +20,9 @@ type Config struct {
 
 func Load() *Config {
 	cfg := &Config{
-		Port:           "50051",
-		DeploymentsDir: "./deployments",
-		LogLevel:       "info",
+		Port:           DefaultPort,
+		DeploymentsDir: DefaultDeploymentsDir,
+		LogLevel:       DefaultLogLevel,
 	}
 
 	if port := os.Getenv("DOCKER_CONTROL_PORT"); port != "" {
@@ -36,8 +42,7 @@ func Load() *Config {
 	flag.StringVar(&cfg.LogLevel, "log-level", cfg.LogLevel, "Log level (debug, info, warn, error)")
 	flag.Parse()
 
-	absPath, err := filepath.Abs(cfg.DeploymentsDir)
-	if err == nil {
+	if absPath, err := filepath.Abs(cfg.DeploymentsDir); err == nil {
 		cfg.DeploymentsDir = absPath
 	}
 

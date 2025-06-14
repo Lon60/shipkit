@@ -23,7 +23,11 @@ test-cover:
 	go test -cover ./...
 
 proto:
-	protoc --go_out=. --go-grpc_out=. proto/docker_control.proto
+	@# Ensure protoc-gen-go & protoc-gen-go-grpc are in PATH (install if missing)
+	@command -v protoc-gen-go >/dev/null 2>&1 || go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@command -v protoc-gen-go-grpc >/dev/null 2>&1 || go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	PATH=$$PATH:$(shell go env GOPATH)/bin \
+	protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. proto/docker_control.proto
 
 clean:
 	rm -f docker-control-server

@@ -20,22 +20,19 @@ import (
 func main() {
 	cfg := config.Load()
 
-	logger := setupLogger(cfg.LogLevel)
+	logger, err := setupLogger(cfg.LogLevel)
+	if err != nil {
+		fmt.Printf("Failed to create logger: %v\n", err)
+		os.Exit(1)
+	}
 	defer logger.Sync()
 
 	logger.Info("Starting Docker Control gRPC server",
 		zap.String("port", cfg.Port),
-		zap.String("deployments_dir", cfg.DeploymentsDir),
 		zap.String("log_level", cfg.LogLevel))
 
-	if err := os.MkdirAll(cfg.DeploymentsDir, 0755); err != nil {
-		logger.Fatal("Failed to create deployments directory",
-			zap.String("dir", cfg.DeploymentsDir),
-			zap.Error(err))
-	}
-
 	dockerExec := executor.NewDockerComposeExecutor()
-	dockerService := service.NewDockerControlService(dockerExec, logger, cfg.DeploymentsDir)
+	dockerService := service.NewDockerControlService(dockerExec, logger)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
@@ -62,7 +59,7 @@ func main() {
 	logger.Info("Server stopped")
 }
 
-func setupLogger(level string) *zap.Logger {
+func setupLogger(level string) (*zap.Logger, error) {
 	var zapLevel zapcore.Level
 	switch level {
 	case "debug":
@@ -103,11 +100,5 @@ func setupLogger(level string) *zap.Logger {
 		ErrorOutputPaths: []string{"stderr"},
 	}
 
-	logger, err := config.Build()
-	if err != nil {
-		fmt.Printf("Failed to create logger: %v\n", err)
-		os.Exit(1)
-	}
-
-	return logger
+	return config.Build()
 }
