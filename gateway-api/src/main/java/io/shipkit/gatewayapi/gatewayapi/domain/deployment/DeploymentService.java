@@ -89,4 +89,16 @@ public class DeploymentService {
     public List<Deployment> listDeployments() {
         return deploymentRepository.findAll();
     }
+
+    @Transactional
+    public Deployment startDeployment(UUID id) {
+        Deployment deployment = deploymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
+
+        ActionResult result = grpcClient.startCompose(id.toString(), deployment.getComposeYaml());
+        if (result.getStatus() != 0) {
+            throw new BadRequestException("Failed to start compose: " + result.getMessage());
+        }
+        return deployment;
+    }
 } 

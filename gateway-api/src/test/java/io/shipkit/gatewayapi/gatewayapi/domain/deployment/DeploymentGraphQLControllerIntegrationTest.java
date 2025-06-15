@@ -170,4 +170,22 @@ class DeploymentGraphQLControllerIntegrationTest {
                 .entity(String.class)
                 .isEqualTo(uuidRef.get());
     }
+
+    @Test
+    @WithMockUser
+    void shouldStartExistingDeployment() {
+        // Create deployment first saved in DB but not started
+        when(grpcClient.startCompose(any(), any()))
+                .thenReturn(ActionResult.newBuilder().setStatus(0).setMessage("started").build());
+        String composeYaml = "version: '3'\nservices:\n  app:\n    image: nginx";
+        Deployment deployment = deploymentRepository.save(Deployment.create(composeYaml));
+
+        // Now start existing deployment
+        GraphQlTester.Response response = graphQlTester.documentName("startDeployment")
+                .variable("id", deployment.getId().toString())
+                .execute();
+
+        response.path("startDeployment.id").entity(String.class).isEqualTo(deployment.getId().toString());
+        verify(grpcClient).startCompose(deployment.getId().toString(), composeYaml);
+    }
 } 

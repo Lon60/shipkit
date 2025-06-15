@@ -1,0 +1,5 @@
+mutation startDeployment($id: ID!) {
+    startDeployment(id: $id) {
+        id
+    }
+} 

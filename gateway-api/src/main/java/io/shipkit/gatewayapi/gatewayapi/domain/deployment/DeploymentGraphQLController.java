@@ -44,6 +44,12 @@ public class DeploymentGraphQLController {
         return true;
     }
 
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Deployment startDeployment(@Argument UUID id) {
+        return deploymentService.startDeployment(id);
+    }
+
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
     public DeploymentStatusDTO deploymentStatus(@Argument UUID id) {

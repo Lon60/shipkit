@@ -23,6 +23,7 @@ extend type Mutation {
     createDeployment(composeYaml: String!): Deployment!
     updateDeployment(id: ID!, composeYaml: String!): Deployment!
     deleteDeployment(id: ID!): Boolean!
+    startDeployment(id: ID!): Deployment!
     stopDeployment(id: ID!): Boolean!
 }
 
