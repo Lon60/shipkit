@@ -20,8 +20,21 @@ public class DeploymentGraphQLController {
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public Deployment startDeployment(@Argument String composeYaml) {
-        return deploymentService.startDeployment(composeYaml);
+    public Deployment createDeployment(@Argument String composeYaml) {
+        return deploymentService.createDeployment(composeYaml);
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public Deployment updateDeployment(@Argument UUID id, @Argument String composeYaml) {
+        return deploymentService.updateDeployment(id, composeYaml);
+    }
+
+    @MutationMapping
+    @PreAuthorize("isAuthenticated()")
+    public boolean deleteDeployment(@Argument UUID id) {
+        deploymentService.deleteDeployment(id);
+        return true;
     }
 
     @MutationMapping

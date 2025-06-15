@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -45,19 +46,83 @@ class DeploymentGraphQLControllerIntegrationTest {
 
     @Test
     @WithMockUser
-    void shouldStartDeployment() {
+    void shouldCreateDeployment() {
         when(grpcClient.startCompose(any(), any()))
                 .thenReturn(ActionResult.newBuilder().setStatus(0).setMessage("started").build());
 
         String composeYaml = "version: '3'\nservices:\n  app:\n    image: nginx";
 
-        GraphQlTester.Response response = graphQlTester.documentName("startDeployment")
+        GraphQlTester.Response response = graphQlTester.documentName("createDeployment")
                 .variable("yaml", composeYaml)
                 .execute();
 
-        response.path("startDeployment.id").hasValue();
+        response.path("createDeployment.id").hasValue();
 
         assertEquals(1, deploymentRepository.count());
+    }
+
+    @Test
+    @WithMockUser
+    void shouldUpdateDeployment() {
+        // First create a deployment
+        when(grpcClient.startCompose(any(), any()))
+                .thenReturn(ActionResult.newBuilder().setStatus(0).setMessage("started").build());
+        when(grpcClient.stopApp(any()))
+                .thenReturn(ActionResult.newBuilder().setStatus(0).setMessage("stopped").build());
+
+        String originalYaml = "version: '3'\nservices:\n  app:\n    image: nginx";
+        String updatedYaml = "version: '3'\nservices:\n  app:\n    image: httpd";
+
+        String deploymentId = graphQlTester.documentName("createDeployment")
+                .variable("yaml", originalYaml)
+                .execute()
+                .path("createDeployment.id")
+                .entity(String.class)
+                .get();
+
+        // Now update the deployment
+        GraphQlTester.Response updateResponse = graphQlTester.documentName("updateDeployment")
+                .variable("id", deploymentId)
+                .variable("yaml", updatedYaml)
+                .execute();
+
+        updateResponse.path("updateDeployment.id").entity(String.class).isEqualTo(deploymentId);
+        updateResponse.path("updateDeployment.composeYaml").entity(String.class).isEqualTo(updatedYaml);
+
+        assertEquals(1, deploymentRepository.count()); // Should still have only one deployment
+        verify(grpcClient).stopApp(deploymentId); // Should have stopped the old deployment
+        verify(grpcClient).startCompose(deploymentId, updatedYaml); // Should have started with new yaml
+    }
+
+    @Test
+    @WithMockUser
+    void shouldDeleteDeployment() {
+        // First create a deployment
+        when(grpcClient.startCompose(any(), any()))
+                .thenReturn(ActionResult.newBuilder().setStatus(0).setMessage("started").build());
+        when(grpcClient.stopApp(any()))
+                .thenReturn(ActionResult.newBuilder().setStatus(0).setMessage("stopped").build());
+
+        String composeYaml = "version: '3'\nservices:\n  app:\n    image: nginx";
+
+        String deploymentId = graphQlTester.documentName("createDeployment")
+                .variable("yaml", composeYaml)
+                .execute()
+                .path("createDeployment.id")
+                .entity(String.class)
+                .get();
+
+        assertEquals(1, deploymentRepository.count());
+
+        // Now delete the deployment
+        GraphQlTester.Response deleteResponse = graphQlTester.documentName("deleteDeployment")
+                .variable("id", deploymentId)
+                .execute();
+
+        deleteResponse.path("deleteDeployment").entity(Boolean.class).isEqualTo(true);
+
+        assertEquals(0, deploymentRepository.count()); // Should be deleted from database
+        verify(grpcClient).stopApp(deploymentId); // Should have stopped the deployment first
     }
 
     @Test
@@ -75,10 +140,10 @@ class DeploymentGraphQLControllerIntegrationTest {
         // ---- create deployment via GraphQL ----
         String composeYaml = "version: '3'\nservices:\n  app:\n    image: nginx";
 
-        String deploymentId = graphQlTester.documentName("startDeployment")
+        String deploymentId = graphQlTester.documentName("createDeployment")
                 .variable("yaml", composeYaml)
                 .execute()
-                .path("startDeployment.id")
+                .path("createDeployment.id")
                 .entity(String.class)
                 .get();
 

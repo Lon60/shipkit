@@ -20,7 +20,9 @@ type DeploymentStatus {
 }
 
 extend type Mutation {
-    startDeployment(composeYaml: String!): Deployment!
+    createDeployment(composeYaml: String!): Deployment!
+    updateDeployment(id: ID!, composeYaml: String!): Deployment!
+    deleteDeployment(id: ID!): Boolean!
     stopDeployment(id: ID!): Boolean!
 }
 
