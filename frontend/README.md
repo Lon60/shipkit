@@ -1,29 +1,45 @@
-# Create T3 App
+# Shipkit Frontend
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+A modern, responsive frontend for the Shipkit Platform as a Service (PaaS) - an alternative to Coolify and similar platforms. Built with Next.js 15, React 19, TypeScript, and Tailwind CSS.
 
-## What's next? How do I make an app with this?
+## Prerequisites
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- Node.js 18+ or Bun
+- Spring Boot backend (gateway-api) running on port 8080
+- Docker and Docker Compose (for the backend microservices)
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Getting Started
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+### 1. Clone and Install Dependencies
 
-## Learn More
+```bash
+cd frontend
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+bun install
+```
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+### 2. Environment Setup
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+Copy the environment example and configure:
 
-## How do I deploy this?
+```bash
+cp .env.example .env.local
+```
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+Update `.env.local` with your configuration:
+
+```env
+# GraphQL endpoint (backend API)
+NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8080/graphql
+
+# Application name
+NEXT_PUBLIC_APP_NAME=Shipkit
+```
+
+### 3. Start the Development Server
+
+```bash
+bun dev
+```
+
+The application will be available at `http://localhost:3000`.

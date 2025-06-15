@@ -1,0 +1,102 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation } from '@apollo/client';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { START_DEPLOYMENT, GET_DEPLOYMENTS, type Deployment } from '@/lib/graphql';
+
+const deploymentSchema = z.object({
+  composeYaml: z.string().min(1, 'Docker Compose YAML is required').refine(
+    (val) => {
+      try {
+        // Basic validation - check if it contains typical docker-compose structure
+        const lowerVal = val.toLowerCase();
+        return lowerVal.includes('services');
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Invalid Docker Compose YAML format' }
+  ),
+});
+
+type DeploymentFormData = z.infer<typeof deploymentSchema>;
+
+interface CreateDeploymentFormProps {
+  onSuccess?: () => void;
+}
+
+export function CreateDeploymentForm({ onSuccess }: CreateDeploymentFormProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [startDeployment] = useMutation<{ startDeployment: Deployment }>(START_DEPLOYMENT, {
+    refetchQueries: [{ query: GET_DEPLOYMENTS }],
+  });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<DeploymentFormData>({
+    resolver: zodResolver(deploymentSchema),
+  });
+
+  const onSubmit = async (data: DeploymentFormData) => {
+    setIsLoading(true);
+    try {
+      await startDeployment({
+        variables: { composeYaml: data.composeYaml },
+      });
+      toast.success('Deployment started');
+      reset();
+      onSuccess?.();
+    } catch (error) {
+      console.error('Deployment error:', error);
+      toast.error('Failed to start deployment. Check your configuration.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const exampleYaml = `services:
+  app:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped`;
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="composeYaml" className="text-foreground">Docker Compose YAML</Label>
+        <Textarea
+          id="composeYaml"
+          placeholder={exampleYaml}
+          className="h-64 font-mono text-sm bg-background border-border text-foreground"
+          {...register('composeYaml')}
+        />
+        {errors.composeYaml && (
+          <p className="text-sm text-destructive">{errors.composeYaml.message}</p>
+        )}
+      </div>
+
+      <div className="flex justify-end space-x-2">
+        <Button type="button" variant="outline" onClick={() => reset()}>
+          Clear
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Deploying...' : 'Deploy'}
+        </Button>
+      </div>
+    </form>
+  );
+} 
