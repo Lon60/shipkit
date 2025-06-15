@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { START_DEPLOYMENT, GET_DEPLOYMENTS, type Deployment } from '@/lib/graphql';
+import { CREATE_DEPLOYMENT, GET_DEPLOYMENTS, type Deployment } from '@/lib/graphql';
 
 const deploymentSchema = z.object({
   composeYaml: z.string().min(1, 'Docker Compose YAML is required').refine(
@@ -35,7 +35,7 @@ interface CreateDeploymentFormProps {
 export function CreateDeploymentForm({ onSuccess }: CreateDeploymentFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const [startDeployment] = useMutation<{ startDeployment: Deployment }>(START_DEPLOYMENT, {
+  const [createDeployment] = useMutation<{ createDeployment: Deployment }>(CREATE_DEPLOYMENT, {
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
@@ -51,7 +51,7 @@ export function CreateDeploymentForm({ onSuccess }: CreateDeploymentFormProps) {
   const onSubmit = async (data: DeploymentFormData) => {
     setIsLoading(true);
     try {
-      await startDeployment({
+      await createDeployment({
         variables: { composeYaml: data.composeYaml },
       });
       toast.success('Deployment started');

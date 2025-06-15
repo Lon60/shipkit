@@ -94,7 +94,7 @@ export function DeploymentsList() {
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
-  const [startDeployment] = useMutation<{ startDeployment: Deployment }>(START_DEPLOYMENT, {
+  const [startDeployment] = useMutation<{ startDeployment: boolean }>(START_DEPLOYMENT, {
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
@@ -124,7 +124,7 @@ export function DeploymentsList() {
   const handleStartDeployment = async (deployment: Deployment) => {
     try {
       await startDeployment({ 
-        variables: { composeYaml: deployment.composeYaml } 
+        variables: { id: deployment.id } 
       });
       toast.success('Deployment restarted successfully!');
       // Update local status immediately

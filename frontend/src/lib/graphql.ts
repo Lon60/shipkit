@@ -46,13 +46,21 @@ export const GET_DEPLOYMENT_STATUS = gql`
 `;
 
 // Deployment Mutations
-export const START_DEPLOYMENT = gql`
-  mutation StartDeployment($composeYaml: String!) {
-    startDeployment(composeYaml: $composeYaml) {
+// Create a new deployment from a docker-compose definition
+export const CREATE_DEPLOYMENT = gql`
+  mutation CreateDeployment($composeYaml: String!) {
+    createDeployment(composeYaml: $composeYaml) {
       id
       composeYaml
       createdAt
     }
+  }
+`;
+
+// Start / restart a deployment by its UUID
+export const START_DEPLOYMENT = gql`
+  mutation StartDeployment($id: ID!) {
+    startDeployment(id: $id)
   }
 `;
 
