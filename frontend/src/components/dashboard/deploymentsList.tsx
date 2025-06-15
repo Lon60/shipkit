@@ -23,11 +23,13 @@ import {
   type Deployment, 
   type DeploymentStatus 
 } from '@/lib/graphql';
-import { Square, Eye, Play } from 'lucide-react';
+import { Square, Eye, Play, Loader2 } from 'lucide-react';
 
 export function DeploymentsList() {
   const [selectedDeployment, setSelectedDeployment] = useState<string | null>(null);
   const [deploymentStatuses, setDeploymentStatuses] = useState<Record<string, DeploymentStatus>>({});
+  const [stopLoading, setStopLoading] = useState<Record<string, boolean>>({});
+  const [startLoading, setStartLoading] = useState<Record<string, boolean>>({});
   const [currentFetchingId, setCurrentFetchingId] = useState<string | null>(null);
   
   const { data: deploymentsData, loading: deploymentsLoading } = useQuery<{
@@ -94,11 +96,13 @@ export function DeploymentsList() {
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
-  const [startDeployment] = useMutation<{ startDeployment: boolean }>(START_DEPLOYMENT, {
+  const [startDeployment] = useMutation<{ startDeployment: Deployment }>(START_DEPLOYMENT, {
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
   const handleStopDeployment = async (id: string) => {
+    // Mark as loading
+    setStopLoading(prev => ({ ...prev, [id]: true }));
     try {
       await stopDeployment({ variables: { id } });
       toast.success('Deployment stopped successfully!');
@@ -118,10 +122,18 @@ export function DeploymentsList() {
     } catch (error) {
       console.error('Stop deployment error:', error);
       toast.error('Failed to stop deployment');
+    } finally {
+      // Clear loading state
+      setStopLoading(prev => {
+        const { [id]: _removed, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
   const handleStartDeployment = async (deployment: Deployment) => {
+    // Mark as loading
+    setStartLoading(prev => ({ ...prev, [deployment.id]: true }));
     try {
       await startDeployment({ 
         variables: { id: deployment.id } 
@@ -143,6 +155,12 @@ export function DeploymentsList() {
     } catch (error) {
       console.error('Start deployment error:', error);
       toast.error('Failed to restart deployment');
+    } finally {
+      // Clear loading state
+      setStartLoading(prev => {
+        const { [deployment.id]: _removed, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -319,19 +337,39 @@ export function DeploymentsList() {
                       <Button 
                         variant="default" 
                         size="sm"
+                        disabled={!!startLoading[deployment.id] || getDeploymentStatus(deployment.id).toLowerCase() === 'starting'}
                         onClick={() => handleStartDeployment(deployment)}
                       >
-                        <Play className="h-4 w-4 mr-2" />
-                        Start
+                        {startLoading[deployment.id] ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Starting
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4 mr-2" />
+                            Start
+                          </>
+                        )}
                       </Button>
                     ) : (
                       <Button 
                         variant="destructive" 
                         size="sm"
+                        disabled={!!stopLoading[deployment.id] || getDeploymentStatus(deployment.id).toLowerCase() === 'stopping'}
                         onClick={() => handleStopDeployment(deployment.id)}
                       >
-                        <Square className="h-4 w-4 mr-2" />
-                        Stop
+                        {stopLoading[deployment.id] ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Stopping
+                          </>
+                        ) : (
+                          <>
+                            <Square className="h-4 w-4 mr-2" />
+                            Stop
+                          </>
+                        )}
                       </Button>
                     )}
                   </div>

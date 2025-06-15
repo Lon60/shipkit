@@ -60,7 +60,11 @@ export const CREATE_DEPLOYMENT = gql`
 // Start / restart a deployment by its UUID
 export const START_DEPLOYMENT = gql`
   mutation StartDeployment($id: ID!) {
-    startDeployment(id: $id)
+    startDeployment(id: $id) {
+      id
+      composeYaml
+      createdAt
+    }
   }
 `;
 
