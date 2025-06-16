@@ -1,6 +1,5 @@
 import { gql } from '@apollo/client';
 
-// Auth Mutations
 export const REGISTER_MUTATION = gql`
   mutation Register($input: CreateAccountInput!) {
     register(input: $input) {
@@ -17,11 +16,11 @@ export const LOGIN_MUTATION = gql`
   }
 `;
 
-// Deployment Queries
 export const GET_DEPLOYMENTS = gql`
   query GetDeployments {
     deployments {
       id
+      name
       composeYaml
       createdAt
     }
@@ -45,23 +44,33 @@ export const GET_DEPLOYMENT_STATUS = gql`
   }
 `;
 
-// Deployment Mutations
-// Create a new deployment from a docker-compose definition
 export const CREATE_DEPLOYMENT = gql`
-  mutation CreateDeployment($composeYaml: String!) {
-    createDeployment(composeYaml: $composeYaml) {
+  mutation CreateDeployment($input: CreateDeploymentDTO!) {
+    createDeployment(input: $input) {
       id
+      name
       composeYaml
       createdAt
     }
   }
 `;
 
-// Start / restart a deployment by its UUID
+export const UPDATE_DEPLOYMENT = gql`
+  mutation UpdateDeployment($id: ID!, $input: UpdateDeploymentDTO!) {
+    updateDeployment(id: $id, input: $input) {
+      id
+      name
+      composeYaml
+      createdAt
+    }
+  }
+`;
+
 export const START_DEPLOYMENT = gql`
   mutation StartDeployment($id: ID!) {
     startDeployment(id: $id) {
       id
+      name
       composeYaml
       createdAt
     }
@@ -74,7 +83,12 @@ export const STOP_DEPLOYMENT = gql`
   }
 `;
 
-// TypeScript types based on backend schema
+export const DELETE_DEPLOYMENT = gql`
+  mutation DeleteDeployment($id: ID!) {
+    deleteDeployment(id: $id)
+  }
+`;
+
 export interface AuthPayload {
   token: string;
 }
@@ -84,8 +98,19 @@ export interface CreateAccountInput {
   password: string;
 }
 
+export interface CreateDeploymentDTO {
+  name: string;
+  composeYaml: string;
+}
+
+export interface UpdateDeploymentDTO {
+  name?: string;
+  composeYaml?: string;
+}
+
 export interface Deployment {
   id: string;
+  name: string;
   composeYaml: string;
   createdAt: string;
 }

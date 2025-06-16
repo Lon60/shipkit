@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -20,33 +21,42 @@ import {
   GET_DEPLOYMENT_STATUS, 
   STOP_DEPLOYMENT,
   START_DEPLOYMENT,
+  DELETE_DEPLOYMENT,
   type Deployment, 
   type DeploymentStatus 
 } from '@/lib/graphql';
-import { Square, Eye, Play, Loader2 } from 'lucide-react';
+import { Square, Eye, Play, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 
 export function DeploymentsList() {
   const [selectedDeployment, setSelectedDeployment] = useState<string | null>(null);
   const [deploymentStatuses, setDeploymentStatuses] = useState<Record<string, DeploymentStatus>>({});
   const [stopLoading, setStopLoading] = useState<Record<string, boolean>>({});
   const [startLoading, setStartLoading] = useState<Record<string, boolean>>({});
+  const [deleteLoading, setDeleteLoading] = useState<Record<string, boolean>>({});
   const [currentFetchingId, setCurrentFetchingId] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    deployment: Deployment | null;
+    confirmText: string;
+  }>({
+    isOpen: false,
+    deployment: null,
+    confirmText: '',
+  });
   
   const { data: deploymentsData, loading: deploymentsLoading } = useQuery<{
     deployments: Deployment[];
   }>(GET_DEPLOYMENTS);
 
-  // Separate query for the detailed view - this won't interfere with main list
   const { data: detailStatusData, loading: detailStatusLoading } = useQuery<{
     deploymentStatus: DeploymentStatus;
   }>(GET_DEPLOYMENT_STATUS, {
     variables: { id: selectedDeployment },
     skip: !selectedDeployment,
-    pollInterval: 5000, // Poll every 5 seconds for detailed view
-    fetchPolicy: 'cache-and-network' // Don't interfere with main list cache
+    pollInterval: 5000,
+    fetchPolicy: 'cache-and-network'
   });
 
-  // Lazy query for fetching individual deployment statuses for the main list
   const [fetchStatusForList] = useLazyQuery<{ deploymentStatus: DeploymentStatus }>(GET_DEPLOYMENT_STATUS, {
     fetchPolicy: 'network-only',
     onCompleted: (data) => {
@@ -69,17 +79,14 @@ export function DeploymentsList() {
     void fetchStatusForList({ variables: { id: deploymentId } });
   }, [fetchStatusForList]);
 
-  // Fetch status for all deployments initially
   useEffect(() => {
     if (deploymentsData?.deployments) {
       deploymentsData.deployments.forEach(deployment => {
-        // Always fetch fresh status for each deployment
         void fetchDeploymentStatus(deployment.id);
       });
     }
   }, [deploymentsData?.deployments, fetchDeploymentStatus]);
 
-  // Poll all deployment statuses every 15 seconds (less frequent to avoid conflicts)
   useEffect(() => {
     if (!deploymentsData?.deployments?.length) return;
 
@@ -87,7 +94,7 @@ export function DeploymentsList() {
       deploymentsData.deployments.forEach(deployment => {
         void fetchDeploymentStatus(deployment.id);
       });
-    }, 15000); // Poll every 15 seconds
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [deploymentsData?.deployments, fetchDeploymentStatus]);
@@ -100,13 +107,15 @@ export function DeploymentsList() {
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
+  const [deleteDeployment] = useMutation<{ deleteDeployment: boolean }>(DELETE_DEPLOYMENT, {
+    refetchQueries: [{ query: GET_DEPLOYMENTS }],
+  });
+
   const handleStopDeployment = async (id: string) => {
-    // Mark as loading
     setStopLoading(prev => ({ ...prev, [id]: true }));
     try {
       await stopDeployment({ variables: { id } });
       toast.success('Deployment stopped successfully!');
-      // Update local status immediately
       setDeploymentStatuses(prev => ({
         ...prev,
         [id]: { 
@@ -117,13 +126,11 @@ export function DeploymentsList() {
           containers: prev[id]?.containers ?? []
         }
       }));
-      // Fetch fresh status after a short delay
       setTimeout(() => void fetchDeploymentStatus(id), 2000);
     } catch (error) {
       console.error('Stop deployment error:', error);
       toast.error('Failed to stop deployment');
     } finally {
-      // Clear loading state
       setStopLoading(prev => {
         const { [id]: _removed, ...rest } = prev;
         return rest;
@@ -131,15 +138,13 @@ export function DeploymentsList() {
     }
   };
 
-  const handleStartDeployment = async (deployment: Deployment) => {
-    // Mark as loading
+  const handleStartDeployment = async (deployment: Deployment) => {   
     setStartLoading(prev => ({ ...prev, [deployment.id]: true }));
     try {
       await startDeployment({ 
         variables: { id: deployment.id } 
       });
       toast.success('Deployment restarted successfully!');
-      // Update local status immediately
       setDeploymentStatuses(prev => ({
         ...prev,
         [deployment.id]: { 
@@ -150,14 +155,52 @@ export function DeploymentsList() {
           containers: prev[deployment.id]?.containers ?? []
         }
       }));
-      // Fetch fresh status after a short delay
       setTimeout(() => void fetchDeploymentStatus(deployment.id), 2000);
     } catch (error) {
       console.error('Start deployment error:', error);
       toast.error('Failed to restart deployment');
     } finally {
-      // Clear loading state
       setStartLoading(prev => {
+        const { [deployment.id]: _removed, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const openDeleteConfirmation = (deployment: Deployment) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      deployment,
+      confirmText: '',
+    });
+  };
+
+  const closeDeleteConfirmation = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      deployment: null,
+      confirmText: '',
+    });
+  };
+
+  const handleDeleteDeployment = async () => {
+    const { deployment } = deleteConfirmation;
+    if (!deployment) return;
+
+    setDeleteLoading(prev => ({ ...prev, [deployment.id]: true }));
+    try {
+      await deleteDeployment({ variables: { id: deployment.id } });
+      toast.success('Deployment deleted successfully!');
+      setDeploymentStatuses(prev => {
+        const { [deployment.id]: _removed, ...rest } = prev;
+        return rest;
+      });
+      closeDeleteConfirmation();
+    } catch (error) {
+      console.error('Delete deployment error:', error);
+      toast.error('Failed to delete deployment');
+    } finally {
+      setDeleteLoading(prev => {
         const { [deployment.id]: _removed, ...rest } = prev;
         return rest;
       });
@@ -227,10 +270,12 @@ export function DeploymentsList() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-sm font-mono text-foreground">
-                      {deployment.id}
+                    <CardTitle className="text-base text-foreground">
+                      {deployment.name}
                     </CardTitle>
                     <CardDescription className="text-muted-foreground">
+                      ID: {deployment.id}
+                      <br />
                       Created: {formatDate(deployment.createdAt)}
                       {status !== 'unknown' && (
                         <span className="ml-2">
@@ -255,7 +300,7 @@ export function DeploymentsList() {
                       </DialogTrigger>
                       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Deployment Details</DialogTitle>
+                          <DialogTitle>{deployment.name}</DialogTitle>
                           <DialogDescription>
                             ID: {deployment.id}
                           </DialogDescription>
@@ -372,6 +417,25 @@ export function DeploymentsList() {
                         )}
                       </Button>
                     )}
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      disabled={!!deleteLoading[deployment.id]}
+                      onClick={() => openDeleteConfirmation(deployment)}
+                    >
+                      {deleteLoading[deployment.id] ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Deleting
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -379,6 +443,60 @@ export function DeploymentsList() {
           );
         })}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmation.isOpen} onOpenChange={closeDeleteConfirmation}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Deployment
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the deployment and all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {deleteConfirmation.deployment && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium mb-2">
+                  Please type <span className="font-mono bg-muted px-1 rounded text-destructive">{deleteConfirmation.deployment.name}</span> to confirm:
+                </p>
+                <Input
+                  value={deleteConfirmation.confirmText}
+                  onChange={(e) => setDeleteConfirmation(prev => ({ ...prev, confirmText: e.target.value }))}
+                  placeholder="Enter deployment name"
+                  className="font-mono"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={closeDeleteConfirmation}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  disabled={
+                    deleteConfirmation.confirmText !== deleteConfirmation.deployment.name ||
+                    !!deleteLoading[deleteConfirmation.deployment.id]
+                  }
+                  onClick={handleDeleteDeployment}
+                >
+                  {deleteLoading[deleteConfirmation.deployment.id] ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Deployment'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-} 
+}
