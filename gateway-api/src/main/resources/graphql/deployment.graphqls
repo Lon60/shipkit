@@ -1,7 +1,18 @@
 type Deployment {
     id: ID!
+    name: String!
     composeYaml: String!
     createdAt: String!
+}
+
+input CreateDeploymentDTO {
+    name: String!
+    composeYaml: String!
+}
+
+input UpdateDeploymentDTO {
+    name: String
+    composeYaml: String
 }
 
 type ContainerStatus {
@@ -20,8 +31,8 @@ type DeploymentStatus {
 }
 
 extend type Mutation {
-    createDeployment(composeYaml: String!): Deployment!
-    updateDeployment(id: ID!, composeYaml: String!): Deployment!
+    createDeployment(input: CreateDeploymentDTO!): Deployment!
+    updateDeployment(id: ID!, input: UpdateDeploymentDTO!): Deployment!
     deleteDeployment(id: ID!): Boolean!
     startDeployment(id: ID!): Deployment!
     stopDeployment(id: ID!): Boolean!

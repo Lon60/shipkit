@@ -23,10 +23,14 @@ public class Deployment {
     private String composeYaml;
 
     @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
     private Instant createdAt;
 
-    public static Deployment create(String composeYaml) {
+    public static Deployment create(String name, String composeYaml) {
         return Deployment.builder()
+                .name(name)
                 .composeYaml(composeYaml)
                 .createdAt(Instant.now())
                 .build();

@@ -4,10 +4,14 @@ import docker_control.ActionResult;
 import docker_control.AppStatus;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.ResourceNotFoundException;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.UpdateDeploymentDTO;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.CreateDeploymentDTO;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.DeploymentMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,39 +21,47 @@ public class DeploymentService {
 
     private final DeploymentRepository deploymentRepository;
     private final DockerControlGrpcClient grpcClient;
+    private final DeploymentMapper deploymentMapper;
 
     @Transactional
-    public Deployment createDeployment(String composeYaml) {
-        Deployment deployment = Deployment.create(composeYaml);
+    public Deployment createDeployment(CreateDeploymentDTO createDTO) {
+        Deployment deployment = deploymentMapper.toEntity(createDTO);
+        deployment.setCreatedAt(Instant.now());
         deployment = deploymentRepository.save(deployment);
-
-        String uuid = deployment.getId().toString();
-        ActionResult result = grpcClient.startCompose(uuid, composeYaml);
+        
+        ActionResult result = grpcClient.startCompose(deployment.getId().toString(), deployment.getComposeYaml());
         if (result.getStatus() != 0) {
-            throw new BadRequestException("Failed to start compose: " + result.getMessage());
+            throw new BadRequestException("Failed to start deployment: " + result.getMessage());
         }
+        
         return deployment;
     }
 
     @Transactional
-    public Deployment updateDeployment(UUID id, String composeYaml) {
+    public Deployment updateDeployment(UUID id, UpdateDeploymentDTO updateDTO) {
         Deployment deployment = deploymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
+
+        String originalCompose = deployment.getComposeYaml();
         
-        ActionResult stopResult = grpcClient.stopApp(id.toString());
-        if (stopResult.getStatus() != 0) {
-            throw new BadRequestException("Failed to stop existing deployment: " + stopResult.getMessage());
+        deploymentMapper.updateEntity(deployment, updateDTO);
+        
+        boolean composeChanged = updateDTO.composeYaml() != null && 
+                                !updateDTO.composeYaml().equals(originalCompose);
+        
+        if (composeChanged) {
+            ActionResult stopResult = grpcClient.stopApp(id.toString());
+            if (stopResult.getStatus() != 0) {
+                throw new BadRequestException("Failed to stop existing deployment: " + stopResult.getMessage());
+            }
+            
+            ActionResult startResult = grpcClient.startCompose(id.toString(), updateDTO.composeYaml());
+            if (startResult.getStatus() != 0) {
+                throw new BadRequestException("Failed to start updated deployment: " + startResult.getMessage());
+            }
         }
         
-        deployment.setComposeYaml(composeYaml);
-        deployment = deploymentRepository.save(deployment);
-        
-        ActionResult startResult = grpcClient.startCompose(id.toString(), composeYaml);
-        if (startResult.getStatus() != 0) {
-            throw new BadRequestException("Failed to start updated compose: " + startResult.getMessage());
-        }
-        
-        return deployment;
+        return deploymentRepository.save(deployment);
     }
 
     @Transactional
@@ -88,6 +100,12 @@ public class DeploymentService {
     @Transactional(readOnly = true)
     public List<Deployment> listDeployments() {
         return deploymentRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Deployment findById(UUID id) {
+        return deploymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
     }
 
     @Transactional
