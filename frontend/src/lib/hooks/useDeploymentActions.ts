@@ -9,6 +9,10 @@ import {
   type Deployment 
 } from '@/lib/graphql';
 
+interface StatusUpdate {
+  state: string;
+}
+
 export function useDeploymentActions() {
   const [stopLoading, setStopLoading] = useState<Record<string, boolean>>({});
   const [startLoading, setStartLoading] = useState<Record<string, boolean>>({});
@@ -28,7 +32,7 @@ export function useDeploymentActions() {
 
   const handleStopDeployment = async (
     id: string, 
-    onStatusUpdate: (id: string, status: any) => void,
+    onStatusUpdate: (id: string, status: StatusUpdate) => void,
     onRefetch: (id: string) => void
   ) => {
     setStopLoading(prev => ({ ...prev, [id]: true }));
@@ -42,7 +46,7 @@ export function useDeploymentActions() {
       toast.error('Failed to stop deployment');
     } finally {
       setStopLoading(prev => {
-        const { [id]: _removed, ...rest } = prev;
+        const { [id]: _, ...rest } = prev;
         return rest;
       });
     }
@@ -50,7 +54,7 @@ export function useDeploymentActions() {
 
   const handleStartDeployment = async (
     deployment: Deployment,
-    onStatusUpdate: (id: string, status: any) => void,
+    onStatusUpdate: (id: string, status: StatusUpdate) => void,
     onRefetch: (id: string) => void
   ) => {   
     setStartLoading(prev => ({ ...prev, [deployment.id]: true }));
@@ -66,7 +70,7 @@ export function useDeploymentActions() {
       toast.error('Failed to restart deployment');
     } finally {
       setStartLoading(prev => {
-        const { [deployment.id]: _removed, ...rest } = prev;
+        const { [deployment.id]: _, ...rest } = prev;
         return rest;
       });
     }
@@ -86,7 +90,7 @@ export function useDeploymentActions() {
       toast.error('Failed to delete deployment');
     } finally {
       setDeleteLoading(prev => {
-        const { [id]: _removed, ...rest } = prev;
+        const { [id]: _, ...rest } = prev;
         return rest;
       });
     }

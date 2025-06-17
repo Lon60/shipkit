@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useLazyQuery } from '@apollo/client';
 import { GET_DEPLOYMENT_STATUS, type DeploymentStatus, type Deployment } from '@/lib/graphql';
 

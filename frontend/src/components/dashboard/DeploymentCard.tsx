@@ -12,6 +12,7 @@ interface DeploymentCardProps {
   startLoading: boolean;
   deleteLoading: boolean;
   onView: () => void;
+  onEdit: () => void;
   onStart: () => void;
   onStop: () => void;
   onDelete: () => void;
@@ -26,6 +27,7 @@ export function DeploymentCard({
   startLoading,
   deleteLoading,
   onView,
+  onEdit,
   onStart,
   onStop,
   onDelete
@@ -34,8 +36,19 @@ export function DeploymentCard({
     return new Date(dateString).toLocaleString();
   };
 
+  const handleCardClick = () => {
+    onView();
+  };
+
+  const handleActionsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
-    <Card className="border-border bg-card">
+    <Card 
+      className="border-border bg-card cursor-pointer hover:bg-accent/50 transition-colors" 
+      onClick={handleCardClick}
+    >
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
@@ -55,18 +68,19 @@ export function DeploymentCard({
               )}
             </CardDescription>
           </div>
-          <DeploymentActions
-            deployment={deployment}
-            isStopped={isStopped}
-            status={status}
-            stopLoading={stopLoading}
-            startLoading={startLoading}
-            deleteLoading={deleteLoading}
-            onView={onView}
-            onStart={onStart}
-            onStop={onStop}
-            onDelete={onDelete}
-          />
+          <div onClick={handleActionsClick}>
+            <DeploymentActions
+              isStopped={isStopped}
+              status={status}
+              stopLoading={stopLoading}
+              startLoading={startLoading}
+              deleteLoading={deleteLoading}
+              onEdit={onEdit}
+              onStart={onStart}
+              onStop={onStop}
+              onDelete={onDelete}
+            />
+          </div>
         </div>
       </CardHeader>
     </Card>

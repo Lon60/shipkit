@@ -8,9 +8,11 @@ import { useDeploymentActions } from '@/lib/hooks/useDeploymentActions';
 import { DeploymentCard } from './DeploymentCard';
 import { DeploymentDetailsDialog } from './DeploymentDetailsDialog';
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
+import { EditDeploymentDialog } from './EditDeploymentDialog';
 
 export function DeploymentsList() {
   const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
+  const [editDeployment, setEditDeployment] = useState<Deployment | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
     deployment: Deployment | null;
@@ -60,6 +62,14 @@ export function DeploymentsList() {
       isOpen: false,
       deployment: null,
     });
+  };
+
+  const openEditDialog = (deployment: Deployment) => {
+    setEditDeployment(deployment);
+  };
+
+  const closeEditDialog = () => {
+    setEditDeployment(null);
   };
 
   const handleDeploymentStart = async (deployment: Deployment) => {
@@ -129,6 +139,7 @@ export function DeploymentsList() {
               startLoading={!!startLoading[deployment.id]}
               deleteLoading={!!deleteLoading[deployment.id]}
               onView={() => setSelectedDeployment(deployment)}
+              onEdit={() => openEditDialog(deployment)}
               onStart={() => handleDeploymentStart(deployment)}
               onStop={() => handleDeploymentStop(deployment.id)}
               onDelete={() => openDeleteConfirmation(deployment)}
@@ -142,6 +153,12 @@ export function DeploymentsList() {
         isOpen={!!selectedDeployment}
         onClose={() => setSelectedDeployment(null)}
         getStatusBadgeColor={getStatusBadgeColor}
+      />
+
+      <EditDeploymentDialog
+        deployment={editDeployment}
+        isOpen={!!editDeployment}
+        onClose={closeEditDialog}
       />
 
       <DeleteConfirmationDialog

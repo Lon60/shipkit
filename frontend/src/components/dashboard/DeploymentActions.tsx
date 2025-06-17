@@ -1,28 +1,25 @@
 import { Button } from '@/components/ui/button';
-import { Square, Eye, Play, Loader2, Trash2 } from 'lucide-react';
-import { type Deployment } from '@/lib/graphql';
+import { Square, Play, Loader2, Trash2, Edit } from 'lucide-react';
 
 interface DeploymentActionsProps {
-  deployment: Deployment;
   isStopped: boolean;
   status: string;
   stopLoading: boolean;
   startLoading: boolean;
   deleteLoading: boolean;
-  onView: () => void;
+  onEdit: () => void;
   onStart: () => void;
   onStop: () => void;
   onDelete: () => void;
 }
 
 export function DeploymentActions({
-  deployment,
   isStopped,
   status,
   stopLoading,
   startLoading,
   deleteLoading,
-  onView,
+  onEdit,
   onStart,
   onStop,
   onDelete
@@ -32,10 +29,10 @@ export function DeploymentActions({
       <Button 
         variant="outline" 
         size="sm"
-        onClick={onView}
+        onClick={onEdit}
       >
-        <Eye className="h-4 w-4 mr-2" />
-        View
+        <Edit className="h-4 w-4 mr-2" />
+        Edit
       </Button>
       
       {isStopped ? (
