@@ -1,24 +1,49 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/components/auth/loginForm';
 import { RouteGuard } from '@/components/routeGuard';
+import { useAdminStatus } from '@/lib/hooks/useAdminStatus';
+import { AuthLayout } from '@/components/layout/PageLayout';
+import { LoadingPage } from '@/components/layout/LoadingSpinner';
 
 export default function LoginPage() {
+  const { adminInitialized, loading } = useAdminStatus();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !adminInitialized) {
+      router.push('/register');
+    }
+  }, [adminInitialized, loading, router]);
+
+  if (loading) {
+    return <LoadingPage />;
+  }
+
+  if (!adminInitialized) {
+    return null;
+  }
+
   return (
     <RouteGuard requireAuth={false} redirectTo="/">
-      <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <h2 className="mt-6 text-3xl font-bold text-foreground">
-              Shipkit
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Sign in to manage your deployments
-            </p>
+      <AuthLayout>
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center space-y-4">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-primary">
+                Shipkit
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Container Deployment Platform
+              </p>
+            </div>
+            <div className="h-px bg-border"></div>
           </div>
           <LoginForm />
         </div>
-      </div>
+      </AuthLayout>
     </RouteGuard>
   );
 }

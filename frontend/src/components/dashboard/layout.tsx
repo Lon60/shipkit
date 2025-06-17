@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { MobileHeader } from '@/components/dashboard/mobileHeader';
 import { CreateDeploymentForm } from '@/components/dashboard/createDeploymentForm';
+import { LoadingPage } from '@/components/layout/LoadingSpinner';
 import {
   Dialog,
   DialogContent,
@@ -38,11 +39,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   if (!isAuthenticated) {
@@ -54,7 +51,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar onCreateDeployment={handleCreateDeployment} />
       <MobileHeader onCreateDeployment={handleCreateDeployment} />
       
-      <main className="md:ml-64 min-h-screen">
+      <main className="md:ml-64 min-h-screen bg-background">
         {children}
       </main>
 

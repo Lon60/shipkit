@@ -89,6 +89,15 @@ export const DELETE_DEPLOYMENT = gql`
   }
 `;
 
+export const GET_STATUS = gql`
+  query GetStatus {
+    status {
+      status
+      adminInitialized
+    }
+  }
+`;
+
 export interface AuthPayload {
   token: string;
 }
@@ -128,4 +137,9 @@ export interface DeploymentStatus {
   message: string | null;
   status: number;
   containers: ContainerStatus[];
+}
+
+export interface Status {
+  status: string;
+  adminInitialized: boolean;
 } 
