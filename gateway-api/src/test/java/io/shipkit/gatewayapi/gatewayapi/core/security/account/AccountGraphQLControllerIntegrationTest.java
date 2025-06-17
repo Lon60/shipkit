@@ -39,7 +39,29 @@ class AccountGraphQLControllerIntegrationTest {
     }
 
     @Test
-    void shouldRegisterNewAccount() {
+    void shouldReturnStatusWithNoAdminInitialized() {
+        graphQlTester.documentName("status")
+                .execute()
+                .path("status.status").entity(String.class).isEqualTo("healthy")
+                .path("status.adminInitialized").entity(Boolean.class).isEqualTo(false);
+    }
+
+    @Test
+    void shouldReturnStatusWithAdminInitialized() {
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "admin@example.com",
+                        "password", "password123"))
+                .execute();
+
+        graphQlTester.documentName("status")
+                .execute()
+                .path("status.status").entity(String.class).isEqualTo("healthy")
+                .path("status.adminInitialized").entity(Boolean.class).isEqualTo(true);
+    }
+
+    @Test
+    void shouldRegisterFirstAccount() {
         graphQlTester.documentName("register")
                 .variable("input", Map.of(
                         "email", "test@example.com",
@@ -49,6 +71,29 @@ class AccountGraphQLControllerIntegrationTest {
 
         assertEquals(1, accountRepository.count());
         assertTrue(accountRepository.findByEmail("test@example.com").isPresent());
+    }
+
+    @Test
+    void shouldNotAllowRegistrationAfterFirstAccount() {
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "first@example.com",
+                        "password", "password123"))
+                .execute();
+
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "second@example.com",
+                        "password", "password456"))
+                .execute()
+                .errors().satisfy(err -> {
+                    assertFalse(err.isEmpty());
+                    assertTrue(err.get(0).getMessage().contains("Registration is disabled"));
+                });
+
+        assertEquals(1, accountRepository.count());
+        assertTrue(accountRepository.findByEmail("first@example.com").isPresent());
+        assertFalse(accountRepository.findByEmail("second@example.com").isPresent());
     }
 
     @Test
