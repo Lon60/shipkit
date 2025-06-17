@@ -72,14 +72,11 @@ export function useDeploymentStatus() {
     });
   }, []);
 
-  // Set up polling for multiple deployments
   const setupPolling = useCallback((deployments: Deployment[]) => {
-    // Initial fetch for all deployments
     deployments.forEach(deployment => {
       void fetchDeploymentStatus(deployment.id);
     });
 
-    // Set up interval polling
     const interval = setInterval(() => {
       deployments.forEach(deployment => {
         void fetchDeploymentStatus(deployment.id);
