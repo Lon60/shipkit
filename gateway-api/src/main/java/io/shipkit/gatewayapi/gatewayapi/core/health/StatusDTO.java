@@ -1,4 +1,4 @@
-package io.shipkit.gatewayapi.gatewayapi.core.security.account.dto;
+package io.shipkit.gatewayapi.gatewayapi.core.health;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

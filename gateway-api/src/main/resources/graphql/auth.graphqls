@@ -12,12 +12,6 @@ type AuthPayload {
     token: String!
 }
 
-type Status {
-    status: String!
-    adminInitialized: Boolean!
-}
-
 type Query {
-    status: Status!
     _empty: String
 }

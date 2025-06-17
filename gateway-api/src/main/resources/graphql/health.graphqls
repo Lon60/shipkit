@@ -1,0 +1,8 @@
+type Status {
+    status: String!
+    adminInitialized: Boolean!
+}
+
+extend type Query {
+    status: Status!
+} 

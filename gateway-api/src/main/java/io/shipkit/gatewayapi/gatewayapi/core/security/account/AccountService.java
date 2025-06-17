@@ -53,9 +53,4 @@ public class AccountService {
             throw new UnauthorizedException("Bad Credentials");
         }
     }
-
-    @Transactional(readOnly = true)
-    public boolean isAdminInitialized() {
-        return accountRepository.count() > 0;
-    }
 }
