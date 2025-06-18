@@ -1,7 +1,5 @@
 FROM eclipse-temurin:21-jdk AS builder
 
-# Set working directory
-
 COPY gradlew gradlew.bat ./
 COPY gradle/ gradle/
 COPY build.gradle settings.gradle ./
