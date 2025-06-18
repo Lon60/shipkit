@@ -32,6 +32,17 @@ func (s *DockerControlService) StartCompose(ctx context.Context, req *pb.StartCo
 		s.logger.Error("Failed to start compose",
 			zap.String("uuid", req.Uuid),
 			zap.Error(err))
+
+		// Cleanup failed deployment resources
+		s.logger.Info("Cleaning up failed deployment", zap.String("uuid", req.Uuid))
+		if cleanupErr := s.executor.ComposeDown(ctx, req.Uuid); cleanupErr != nil {
+			s.logger.Warn("Failed to cleanup failed deployment",
+				zap.String("uuid", req.Uuid),
+				zap.Error(cleanupErr))
+		} else {
+			s.logger.Info("Successfully cleaned up failed deployment", zap.String("uuid", req.Uuid))
+		}
+
 		return &pb.ActionResult{
 			Status:  1,
 			Message: "Failed to start compose",
