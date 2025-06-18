@@ -89,6 +89,14 @@ export const DELETE_DEPLOYMENT = gql`
   }
 `;
 
+export const CHANGE_PASSWORD = gql`
+  mutation ChangePassword($input: ChangePasswordInput!) {
+    changePassword(input: $input) {
+      token
+    }
+  }
+`;
+
 export const GET_STATUS = gql`
   query GetStatus {
     status {
@@ -115,6 +123,11 @@ export interface CreateDeploymentDTO {
 export interface UpdateDeploymentDTO {
   name?: string;
   composeYaml?: string;
+}
+
+export interface ChangePasswordInput {
+  oldPassword: string;
+  newPassword: string;
 }
 
 export interface Deployment {
