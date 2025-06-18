@@ -53,4 +53,25 @@ public class AccountService {
             throw new UnauthorizedException("Bad Credentials");
         }
     }
+
+    @Transactional
+    public AuthPayloadDTO changePassword(String email, String oldPassword, String newPassword) {
+        try {
+            // Authenticate with old password first
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, oldPassword)
+            );
+        } catch (AuthenticationException ex) {
+            throw new UnauthorizedException("Old password is incorrect");
+        }
+
+        Account account = accountRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("Account not found"));
+
+        account.setPassword(passwordEncoder.encode(newPassword));
+        accountRepository.save(account);
+
+        String token = jwtService.generateToken(account);
+        return new AuthPayloadDTO(token);
+    }
 }
