@@ -1,7 +1,6 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
-import { env } from '@/env';
 // JWT utility function to check if token is expired
 interface JWTPayload {
   sub?: string;
@@ -47,8 +46,28 @@ const clearExpiredToken = () => {
   }
 };
 
+interface ConfigResponse {
+  graphqlUrl: string;
+  appName: string;
+}
+
+const getGraphQLUrl = async (): Promise<string> => {
+  try {
+    const response = await fetch('/api/config');
+    const config = await response.json() as ConfigResponse;
+    return config.graphqlUrl;
+  } catch (error) {
+    console.warn('Failed to fetch config, falling back to localhost', error);
+    return 'http://localhost:8080/graphql';
+  }
+};
+
+// Initialize GraphQL URL - default to fallback for SSR
+let currentGraphQLUrl = 'http://localhost:8080/graphql';
+
+// Create HTTP link that uses the current URL
 const httpLink = createHttpLink({
-  uri: env.NEXT_PUBLIC_GRAPHQL_URL,
+  uri: () => currentGraphQLUrl,
 });
 
 const authLink = setContext((_, { headers }) => {
@@ -100,6 +119,33 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
     }
   }
 });
+
+// Initialize the GraphQL URL on client side
+const initializeGraphQLUrl = async () => {
+  if (typeof window !== 'undefined') {
+    // Check if we have a cached URL first
+    const cachedUrl = sessionStorage.getItem('graphql_url');
+    if (cachedUrl) {
+      currentGraphQLUrl = cachedUrl;
+      return;
+    }
+    
+    // Fetch the URL and update the current URL
+    try {
+      const url = await getGraphQLUrl();
+      currentGraphQLUrl = url;
+      sessionStorage.setItem('graphql_url', url);
+    } catch (error) {
+      console.warn('Failed to initialize GraphQL URL, using fallback', error);
+      // Keep using fallback
+    }
+  }
+};
+
+// Initialize immediately for client-side
+if (typeof window !== 'undefined') {
+  void initializeGraphQLUrl();
+}
 
 export const apolloClient = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),

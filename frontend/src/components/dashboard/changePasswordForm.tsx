@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/layout/LoadingSpinner';
 import { CHANGE_PASSWORD, type ChangePasswordInput, type AuthPayload } from '@/lib/graphql';
-import { useAuth } from '@/lib/auth';
 import { KeyRound, CheckCircle, AlertCircle } from 'lucide-react';
 
 const changePasswordSchema = z.object({
@@ -30,7 +29,6 @@ export function ChangePasswordForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { token: currentToken } = useAuth();
 
   const [changePassword] = useMutation<{ changePassword: AuthPayload }>(CHANGE_PASSWORD);
 
@@ -65,20 +63,38 @@ export function ChangePasswordForm() {
 
       setSuccessMessage('Password changed successfully!');
       reset();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Change password error:', error);
       
       // Check if it's a 401 error or authentication related error
-      if (error?.networkError?.statusCode === 401 || 
-          error?.message?.includes('Access Denied') || 
-          error?.message?.includes('Unauthorized') ||
-          error?.message?.includes('Invalid password') ||
-          error?.graphQLErrors?.some((e: any) => e.message?.includes('password'))) {
-        setErrorMessage('Current password is incorrect. Please try again.');
-      } else {
-        // For other errors, still use toast as they might be network/server issues
-        toast.error('An unexpected error occurred. Please try again.');
+      if (error && typeof error === 'object' && 'networkError' in error) {
+        const networkError = error.networkError as { statusCode?: number } | null;
+        if (networkError?.statusCode === 401) {
+          setErrorMessage('Current password is incorrect. Please try again.');
+          return;
+        }
       }
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        const message = error.message as string;
+        if (message.includes('Access Denied') || 
+            message.includes('Unauthorized') ||
+            message.includes('Invalid password')) {
+          setErrorMessage('Current password is incorrect. Please try again.');
+          return;
+        }
+      }
+      
+      if (error && typeof error === 'object' && 'graphQLErrors' in error) {
+        const graphQLErrors = error.graphQLErrors as Array<{ message?: string }>;
+        if (graphQLErrors.some(e => e.message?.includes('password'))) {
+          setErrorMessage('Current password is incorrect. Please try again.');
+          return;
+        }
+      }
+      
+      // For other errors, still use toast as they might be network/server issues
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

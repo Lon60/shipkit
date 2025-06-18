@@ -67,7 +67,8 @@ export function useDeploymentStatus() {
 
   const removeDeploymentStatus = useCallback((deploymentId: string) => {
     setDeploymentStatuses(prev => {
-      const { [deploymentId]: _removed, ...rest } = prev;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [deploymentId]: _unused, ...rest } = prev;
       return rest;
     });
   }, []);

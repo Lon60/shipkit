@@ -46,7 +46,8 @@ export function useDeploymentActions() {
       toast.error('Failed to stop deployment');
     } finally {
       setStopLoading(prev => {
-        const { [id]: _, ...rest } = prev;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [id]: _unused, ...rest } = prev;
         return rest;
       });
     }
@@ -70,7 +71,8 @@ export function useDeploymentActions() {
       toast.error('Failed to restart deployment');
     } finally {
       setStartLoading(prev => {
-        const { [deployment.id]: _, ...rest } = prev;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [deployment.id]: _unused, ...rest } = prev;
         return rest;
       });
     }
@@ -90,7 +92,8 @@ export function useDeploymentActions() {
       toast.error('Failed to delete deployment');
     } finally {
       setDeleteLoading(prev => {
-        const { [id]: _, ...rest } = prev;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [id]: _unused, ...rest } = prev;
         return rest;
       });
     }
