@@ -49,15 +49,7 @@ export function LoginForm() {
 
   return (
     <Card className="w-full bg-card border-border shadow-lg">
-      <CardHeader className="text-center pb-6">
-        <CardTitle className="text-2xl font-bold text-card-foreground">
-          Welcome Back
-        </CardTitle>
-        <p className="text-sm text-muted-foreground mt-2">
-          Sign in to your deployment dashboard
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium text-card-foreground">
