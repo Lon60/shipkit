@@ -36,7 +36,7 @@ jobs:
 
       - name: Set lowercase owner
         id: owner
-        run: echo "owner=$(echo \"${GITHUB_REPOSITORY_OWNER,,}\")" >> $GITHUB_OUTPUT
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
 
       - name: Build & push docker-control image
         uses: docker/build-push-action@v5
