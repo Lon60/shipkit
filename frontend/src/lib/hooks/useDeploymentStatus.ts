@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useLazyQuery } from '@apollo/client';
 import { GET_DEPLOYMENT_STATUS, type DeploymentStatus, type Deployment } from '@/lib/graphql';
 
 export function useDeploymentStatus() {
   const [deploymentStatuses, setDeploymentStatuses] = useState<Record<string, DeploymentStatus>>({});
   const [currentFetchingId, setCurrentFetchingId] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [fetchStatusForList] = useLazyQuery<{ deploymentStatus: DeploymentStatus }>(GET_DEPLOYMENT_STATUS, {
     fetchPolicy: 'network-only',
@@ -25,7 +26,7 @@ export function useDeploymentStatus() {
 
   const fetchDeploymentStatus = useCallback((deploymentId: string) => {
     setCurrentFetchingId(deploymentId);
-    void fetchStatusForList({ variables: { id: deploymentId } });
+    fetchStatusForList({ variables: { id: deploymentId } });
   }, [fetchStatusForList]);
 
   const getDeploymentStatus = useCallback((deploymentId: string): string => {
@@ -74,17 +75,27 @@ export function useDeploymentStatus() {
   }, []);
 
   const setupPolling = useCallback((deployments: Deployment[]) => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
     deployments.forEach(deployment => {
-      void fetchDeploymentStatus(deployment.id);
+      fetchDeploymentStatus(deployment.id);
     });
 
-    const interval = setInterval(() => {
+    pollingIntervalRef.current = setInterval(() => {
       deployments.forEach(deployment => {
-        void fetchDeploymentStatus(deployment.id);
+        fetchDeploymentStatus(deployment.id);
       });
     }, 15000);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
   }, [fetchDeploymentStatus]);
 
   return {
