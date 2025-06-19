@@ -1,0 +1,87 @@
+name: Validate Version
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need full history for diff
+
+      - name: Validate VERSION file changed
+        id: diff
+        run: |
+          if git diff --name-only origin/main...HEAD | grep -q "^VERSION$"; then
+            echo "VERSION file changed"
+          else
+            echo "::error::VERSION file was not updated. Please bump the version." && exit 1
+          fi
+
+      - name: Validate version format (allow suffix)
+        run: |
+          VERSION=$(cat VERSION)
+          echo "Version: $VERSION"
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][A-Za-z0-9\.-]+)?$ ]]; then
+            echo "::error::VERSION must follow pattern <major>.<minor>.<patch>[-suffix]" && exit 1
+          fi
+
+      - name: Validate version increment
+        run: |
+          CURRENT=$(cat VERSION)
+          BASE=$(git show origin/main:VERSION || echo "0.0.0")
+          echo "Base version: $BASE"
+          # Strip any suffix (text after '-' or '+') for numeric comparison
+          NUM_BASE=${BASE%%[-+]*}
+          NUM_CUR=${CURRENT%%[-+]*}
+          IFS='.' read -r MAJOR_BASE MINOR_BASE PATCH_BASE <<< "$NUM_BASE"
+          IFS='.' read -r MAJOR_CUR MINOR_CUR PATCH_CUR <<< "$NUM_CUR"
+          if (( MAJOR_CUR < MAJOR_BASE )) || { (( MAJOR_CUR == MAJOR_BASE )) && (( MINOR_CUR < MINOR_BASE )); } || { (( MAJOR_CUR == MAJOR_BASE )) && (( MINOR_CUR == MINOR_BASE )) && (( PATCH_CUR <= PATCH_BASE )); }; then
+            echo "::error::VERSION must be incremented compared to main branch" && exit 1
+          fi
+
+      - name: Validate versions across projects
+        run: |
+          ROOT_VERSION=$(cat VERSION)
+          echo "Root version: $ROOT_VERSION"
+
+          FE_VERSION=$(grep -oP '"version"\s*:\s*"([^"]+)"' frontend/package.json | head -1 | sed -E 's/.*"([^"]+)"/\1/')
+          echo "Frontend version: $FE_VERSION"
+          if [[ "$FE_VERSION" != "$ROOT_VERSION" ]]; then
+            echo "::error::frontend/package.json version ($FE_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
+          fi
+
+          GA_VERSION=$(awk -F"'" '/^version[[:space:]]*=/{print $2; exit}' gateway-api/build.gradle)
+          echo "Gateway-api version: $GA_VERSION"
+          if [[ "$GA_VERSION" != "$ROOT_VERSION" ]]; then
+            echo "::error::gateway-api/build.gradle version ($GA_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
+          fi
+
+          if [[ -f docker-control/VERSION ]]; then
+            DC_VERSION=$(cat docker-control/VERSION)
+            echo "Docker-control version: $DC_VERSION"
+            if [[ "$DC_VERSION" != "$ROOT_VERSION" ]]; then
+              echo "::error::docker-control/VERSION ($DC_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
+            fi
+          else
+            echo "::error::docker-control/VERSION file missing" && exit 1
+          fi
+
+      - name: Validate Release Notes section
+        if: github.event_name == 'pull_request'
+        run: |
+          BODY="${{ github.event.pull_request.body }}"
+          echo "PR Body:\n$BODY"
+          if [[ -z "$BODY" ]]; then
+            echo "::error::Pull request description is empty; include release notes." && exit 1
+          fi
+          # Extract lines under '## Release Notes' heading until next heading
+          NOTES=$(printf "%s\n" "$BODY" | awk '/^##[[:space:]]+Release Notes/{flag=1; next} /^##/{flag=0} flag')
+          NOTES=$(echo "$NOTES" | sed '/^[[:space:]]*$/d')
+          if [[ -z "$NOTES" ]]; then
+            echo "::error::'## Release Notes' section missing or empty." && exit 1
+          fi 
