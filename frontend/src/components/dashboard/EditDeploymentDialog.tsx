@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@apollo/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CodeEditor } from '@/components/ui/code-editor';
 import { UPDATE_DEPLOYMENT, GET_DEPLOYMENTS, type Deployment } from '@/lib/graphql';
 
 const updateDeploymentSchema = z.object({
@@ -47,6 +47,7 @@ export function EditDeploymentDialog({ deployment, isOpen, onClose }: EditDeploy
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<UpdateDeploymentFormData>({
     resolver: zodResolver(updateDeploymentSchema),
@@ -115,10 +116,18 @@ export function EditDeploymentDialog({ deployment, isOpen, onClose }: EditDeploy
 
             <div className="space-y-2">
               <Label htmlFor="composeYaml" className="text-foreground">Docker Compose YAML</Label>
-              <Textarea
-                id="composeYaml"
-                className="h-64 font-mono text-sm bg-background border-border text-foreground"
-                {...register('composeYaml')}
+              <Controller
+                name="composeYaml"
+                control={control}
+                render={({ field }) => (
+                  <CodeEditor
+                    value={field.value}
+                    onChange={(value) => field.onChange(value ?? '')}
+                    height={300}
+                    language="yaml"
+                    className={errors.composeYaml ? 'border-destructive' : ''}
+                  />
+                )}
               />
               {errors.composeYaml && (
                 <p className="text-sm text-destructive">{errors.composeYaml.message}</p>
