@@ -1,0 +1,55 @@
+name: Build Services
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-services:
+    name: Build All Services
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [gateway-api, docker-control, frontend]
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (only for gateway-api)
+        if: matrix.service == 'gateway-api'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build gateway-api
+        if: matrix.service == 'gateway-api'
+        working-directory: gateway-api
+        run: ./gradlew build --no-daemon
+
+      - name: Set up Go 1.x (only for docker-control)
+        if: matrix.service == 'docker-control'
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build docker-control
+        if: matrix.service == 'docker-control'
+        working-directory: docker-control
+        run: make build
+
+      - name: Set up Bun (only for frontend)
+        if: matrix.service == 'frontend'
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install deps & build frontend
+        if: matrix.service == 'frontend'
+        working-directory: frontend
+        env:
+          SKIP_ENV_VALIDATION: "1"
+        run: |
+          bun install
+          bun run build 
