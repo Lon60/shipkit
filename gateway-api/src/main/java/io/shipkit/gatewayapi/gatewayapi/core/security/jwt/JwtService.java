@@ -4,15 +4,16 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.PostConstruct;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.Map;
@@ -28,7 +29,7 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long expirationMs;
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void validateJwtConfiguration() {
         if (secret == null || secret.trim().isEmpty()) {
             throw new IllegalStateException("JWT secret cannot be null or empty. Please configure 'jwt.secret' property.");
@@ -50,7 +51,7 @@ public class JwtService {
             
             logger.info("JWT Secret is good");
             
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | DecodingException e) {
             throw new IllegalStateException("JWT secret is not a valid base64 encoded string. Please check 'jwt.secret' configuration.", e);
         }
     }
