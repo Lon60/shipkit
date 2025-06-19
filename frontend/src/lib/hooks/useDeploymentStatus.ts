@@ -4,29 +4,24 @@ import { GET_DEPLOYMENT_STATUS, type DeploymentStatus, type Deployment } from '@
 
 export function useDeploymentStatus() {
   const [deploymentStatuses, setDeploymentStatuses] = useState<Record<string, DeploymentStatus>>({});
-  const [currentFetchingId, setCurrentFetchingId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [fetchStatusForList] = useLazyQuery<{ deploymentStatus: DeploymentStatus }>(GET_DEPLOYMENT_STATUS, {
-    fetchPolicy: 'network-only',
-    onCompleted: (data) => {
-      if (data?.deploymentStatus && currentFetchingId) {
-        setDeploymentStatuses(prev => ({
-          ...prev,
-          [currentFetchingId]: data.deploymentStatus
-        }));
-        setCurrentFetchingId(null);
-      }
-    },
-    onError: (error) => {
-      console.error('Failed to fetch deployment status:', error);
-      setCurrentFetchingId(null);
-    }
+    fetchPolicy: 'network-only'
   });
 
-  const fetchDeploymentStatus = useCallback((deploymentId: string) => {
-    setCurrentFetchingId(deploymentId);
-    void fetchStatusForList({ variables: { id: deploymentId } });
+  const fetchDeploymentStatus = useCallback(async (deploymentId: string) => {
+    try {
+      const { data } = await fetchStatusForList({ variables: { id: deploymentId } });
+      if (data?.deploymentStatus) {
+        setDeploymentStatuses(prev => ({
+          ...prev,
+          [deploymentId]: data.deploymentStatus
+        }));
+      }
+    } catch (error) {
+      console.error(`Failed to fetch deployment status for ${deploymentId}:`, error);
+    }
   }, [fetchStatusForList]);
 
   const getDeploymentStatus = useCallback((deploymentId: string): string => {
@@ -81,12 +76,12 @@ export function useDeploymentStatus() {
     }
 
     deployments.forEach(deployment => {
-      fetchDeploymentStatus(deployment.id);
+      void fetchDeploymentStatus(deployment.id);
     });
 
     pollingIntervalRef.current = setInterval(() => {
       deployments.forEach(deployment => {
-        fetchDeploymentStatus(deployment.id);
+        void fetchDeploymentStatus(deployment.id);
       });
     }, 15000);
 

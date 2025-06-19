@@ -72,26 +72,30 @@ export function DeploymentsList() {
     setEditDeployment(null);
   };
 
-  const handleDeploymentStart = async (deployment: Deployment) => {
-    await handleStartDeployment(
+  const refetchStatus = (id: string) => {
+    void fetchDeploymentStatus(id);
+  };
+
+  const handleDeploymentStart = (deployment: Deployment) => {
+    void handleStartDeployment(
       deployment,
       updateDeploymentStatus,
-      fetchDeploymentStatus
+      refetchStatus
     );
   };
 
-  const handleDeploymentStop = async (id: string) => {
-    await handleStopDeployment(
+  const handleDeploymentStop = (id: string) => {
+    void handleStopDeployment(
       id,
       updateDeploymentStatus,
-      fetchDeploymentStatus
+      refetchStatus
     );
   };
 
-  const handleDeploymentDelete = async () => {
+  const handleDeploymentDelete = () => {
     if (!deleteConfirmation.deployment) return;
     
-    await handleDeleteDeployment(
+    void handleDeleteDeployment(
       deleteConfirmation.deployment.id,
       removeDeploymentStatus
     );

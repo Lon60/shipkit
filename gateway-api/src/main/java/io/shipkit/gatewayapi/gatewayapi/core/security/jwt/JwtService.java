@@ -4,23 +4,57 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
-
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.Map;
 
 @Service
 public class JwtService {
+    private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
+    private static final int MIN_SECRET_LENGTH = 32;
+    
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration}")
     private long expirationMs;
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void validateJwtConfiguration() {
+        if (secret == null || secret.trim().isEmpty()) {
+            throw new IllegalStateException("JWT secret cannot be null or empty. Please configure 'jwt.secret' property.");
+        }
+        
+        try {
+            byte[] decodedSecret = Decoders.BASE64.decode(secret);
+            
+            if (decodedSecret.length < MIN_SECRET_LENGTH) {
+                throw new IllegalStateException(
+                    String.format("JWT secret is too short (%d bytes). Minimum required: %d bytes for security.", 
+                                decodedSecret.length, MIN_SECRET_LENGTH)
+                );
+            }
+            
+            if (expirationMs <= 0) {
+                throw new IllegalStateException("JWT expiration time must be positive. Please configure 'jwt.expiration' property correctly.");
+            }
+            
+            logger.info("JWT Secret is good");
+            
+        } catch (IllegalArgumentException | DecodingException e) {
+            throw new IllegalStateException("JWT secret is not a valid base64 encoded string. Please check 'jwt.secret' configuration.", e);
+        }
+    }
 
     private SecretKey key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));

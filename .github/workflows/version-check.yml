@@ -74,14 +74,14 @@ jobs:
       - name: Validate Release Notes section
         if: github.event_name == 'pull_request'
         run: |
-          BODY="${{ github.event.pull_request.body }}"
-          echo "PR Body:\n$BODY"
-          if [[ -z "$BODY" ]]; then
+          echo "PR Body (first 200 chars): ${PR_BODY:0:200}..."
+          if [[ -z "$PR_BODY" ]]; then
             echo "::error::Pull request description is empty; include release notes." && exit 1
           fi
-          # Extract lines under '## Release Notes' heading until next heading
-          NOTES=$(printf "%s\n" "$BODY" | awk '/^##[[:space:]]+Release Notes/{flag=1; next} /^##/{flag=0} flag')
+          NOTES=$(printf "%s\n" "$PR_BODY" | awk '/^##[[:space:]]+Release Notes/{flag=1; next} /^##/{flag=0} flag')
           NOTES=$(echo "$NOTES" | sed '/^[[:space:]]*$/d')
           if [[ -z "$NOTES" ]]; then
             echo "::error::'## Release Notes' section missing or empty." && exit 1
-          fi 
+          fi
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }} 

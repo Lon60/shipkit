@@ -9,6 +9,7 @@ services:
       - shipkit
     volumes:
       - docker_deployments:/deployments
+      - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
 
   postgres:
     image: postgres:latest
