@@ -2,6 +2,7 @@ package io.shipkit.gatewayapi.gatewayapi.core.security.account;
 
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.AlreadyExistsException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.UnauthorizedException;
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
 import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AuthPayloadDTO;
 import io.shipkit.gatewayapi.gatewayapi.core.security.jwt.JwtService;
 import lombok.AllArgsConstructor;
@@ -23,6 +24,10 @@ public class AccountService {
 
     @Transactional
     public AuthPayloadDTO register(String email, String password) {
+        if (accountRepository.count() > 0) {
+            throw new BadRequestException("Registration is disabled. Admin account already exists.");
+        }
+        
         if (accountRepository.findByEmail(email).isPresent()) {
             throw new AlreadyExistsException("Email already taken: " + email);
         }
@@ -47,5 +52,26 @@ public class AccountService {
         } catch (AuthenticationException ex) {
             throw new UnauthorizedException("Bad Credentials");
         }
+    }
+
+    @Transactional
+    public AuthPayloadDTO changePassword(String email, String oldPassword, String newPassword) {
+        try {
+            // Authenticate with old password first
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, oldPassword)
+            );
+        } catch (AuthenticationException ex) {
+            throw new UnauthorizedException("Old password is incorrect");
+        }
+
+        Account account = accountRepository.findByEmail(email)
+                .orElseThrow(() -> new UnauthorizedException("Account not found"));
+
+        account.setPassword(passwordEncoder.encode(newPassword));
+        accountRepository.save(account);
+
+        String token = jwtService.generateToken(account);
+        return new AuthPayloadDTO(token);
     }
 }

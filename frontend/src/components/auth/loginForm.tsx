@@ -9,8 +9,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth';
+import { LoadingSpinner } from '@/components/layout/LoadingSpinner';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -36,68 +37,71 @@ export function LoginForm() {
     setIsLoading(true);
     try {
       await login(data.email, data.password);
-      toast.success('Signed in successfully');
+      toast.success('Welcome back to Shipkit!');
       router.push('/');
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('Authentication failed. Check your credentials.');
+      toast.error('Authentication failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-md border-border bg-card">
-      <CardHeader>
-        <CardTitle className="text-foreground">Sign In</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Access your deployment dashboard
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <Card className="w-full bg-card border-border shadow-lg">
+      <CardContent className="space-y-6 pt-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-foreground">Email</Label>
+            <Label htmlFor="email" className="text-sm font-medium text-card-foreground">
+              Email Address
+            </Label>
             <Input
               id="email"
               type="email"
               placeholder="your@email.com"
-              className="bg-background border-border text-foreground"
+              className="h-11"
               {...register('email')}
             />
             {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+              <p className="text-xs text-destructive mt-1">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-foreground">Password</Label>
+            <Label htmlFor="password" className="text-sm font-medium text-card-foreground">
+              Password
+            </Label>
             <Input
               id="password"
               type="password"
-              placeholder="Enter password"
-              className="bg-background border-border text-foreground"
+              placeholder="Enter your password"
+              className="h-11"
               {...register('password')}
             />
             {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
+              <p className="text-xs text-destructive mt-1">
+                {errors.password.message}
+              </p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Signing in...' : 'Sign In'}
+          <Button 
+            type="submit" 
+            className="w-full h-11" 
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center space-x-2">
+                <LoadingSpinner size="sm" />
+                <span>Signing in...</span>
+              </div>
+            ) : (
+              'Sign In'
+            )}
           </Button>
         </form>
-
-        <div className="mt-4 text-center text-sm">
-          <span className="text-muted-foreground">Don&apos;t have an account? </span>
-          <button
-            onClick={() => router.push('/register')}
-            className="text-primary hover:underline"
-          >
-            Create one
-          </button>
-        </div>
       </CardContent>
     </Card>
   );

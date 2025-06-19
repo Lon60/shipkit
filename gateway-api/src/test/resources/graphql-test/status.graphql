@@ -1,0 +1,6 @@
+query {
+    status {
+        status
+        adminInitialized
+    }
+} 

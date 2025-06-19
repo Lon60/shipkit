@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.graphql.test.tester.GraphQlTester;
 import org.springframework.graphql.test.tester.HttpGraphQlTester;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.client.MockMvcWebTestClient;
@@ -39,7 +40,29 @@ class AccountGraphQLControllerIntegrationTest {
     }
 
     @Test
-    void shouldRegisterNewAccount() {
+    void shouldReturnStatusWithNoAdminInitialized() {
+        graphQlTester.documentName("status")
+                .execute()
+                .path("status.status").entity(String.class).isEqualTo("healthy")
+                .path("status.adminInitialized").entity(Boolean.class).isEqualTo(false);
+    }
+
+    @Test
+    void shouldReturnStatusWithAdminInitialized() {
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "admin@example.com",
+                        "password", "password123"))
+                .execute();
+
+        graphQlTester.documentName("status")
+                .execute()
+                .path("status.status").entity(String.class).isEqualTo("healthy")
+                .path("status.adminInitialized").entity(Boolean.class).isEqualTo(true);
+    }
+
+    @Test
+    void shouldRegisterFirstAccount() {
         graphQlTester.documentName("register")
                 .variable("input", Map.of(
                         "email", "test@example.com",
@@ -49,6 +72,29 @@ class AccountGraphQLControllerIntegrationTest {
 
         assertEquals(1, accountRepository.count());
         assertTrue(accountRepository.findByEmail("test@example.com").isPresent());
+    }
+
+    @Test
+    void shouldNotAllowRegistrationAfterFirstAccount() {
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "first@example.com",
+                        "password", "password123"))
+                .execute();
+
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "second@example.com",
+                        "password", "password456"))
+                .execute()
+                .errors().satisfy(err -> {
+                    assertFalse(err.isEmpty());
+                    assertTrue(err.get(0).getMessage().contains("Registration is disabled"));
+                });
+
+        assertEquals(1, accountRepository.count());
+        assertTrue(accountRepository.findByEmail("first@example.com").isPresent());
+        assertFalse(accountRepository.findByEmail("second@example.com").isPresent());
     }
 
     @Test
@@ -138,6 +184,118 @@ class AccountGraphQLControllerIntegrationTest {
         graphQlTester.documentName("login")
                 .variable("email", "ghost@example.com")
                 .variable("password", "password123")
+                .execute()
+                .errors().satisfy(err -> assertFalse(err.isEmpty()));
+    }
+
+    @Test
+    void shouldNotAllowChangePasswordWithoutAuthentication() {
+        // Register an account first
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "test@example.com",
+                        "password", "oldpassword123"))
+                .execute();
+
+        // Try to change password without authentication
+        graphQlTester.documentName("changePassword")
+                .variable("input", Map.of(
+                        "oldPassword", "oldpassword123",
+                        "newPassword", "newpassword456"))
+                .execute()
+                .errors().satisfy(err -> assertFalse(err.isEmpty()));
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void shouldChangePasswordWithValidCredentials() {
+        // Register an account first
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "test@example.com",
+                        "password", "oldpassword123"))
+                .execute();
+
+        // Change password with authentication
+        String token = graphQlTester.documentName("changePassword")
+                .variable("input", Map.of(
+                        "oldPassword", "oldpassword123",
+                        "newPassword", "newpassword456"))
+                .execute()
+                .path("changePassword.token")
+                .entity(String.class)
+                .get();
+
+        assertNotNull(token);
+        assertFalse(token.isBlank(), "JWT should not be blank");
+
+        // Verify old password no longer works
+        graphQlTester.documentName("login")
+                .variable("email", "test@example.com")
+                .variable("password", "oldpassword123")
+                .execute()
+                .errors().satisfy(err -> assertFalse(err.isEmpty()));
+
+        // Verify new password works
+        graphQlTester.documentName("login")
+                .variable("email", "test@example.com")
+                .variable("password", "newpassword456")
+                .execute()
+                .path("login.token").hasValue();
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void shouldNotChangePasswordWithIncorrectOldPassword() {
+        // Register an account first
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "test@example.com",
+                        "password", "oldpassword123"))
+                .execute();
+
+        // Try to change password with wrong old password
+        graphQlTester.documentName("changePassword")
+                .variable("input", Map.of(
+                        "oldPassword", "wrongoldpassword",
+                        "newPassword", "newpassword456"))
+                .execute()
+                .errors().satisfy(err -> {
+                    assertFalse(err.isEmpty());
+                    assertTrue(err.get(0).getMessage().contains("Old password is incorrect"));
+                });
+
+        // Verify original password still works
+        graphQlTester.documentName("login")
+                .variable("email", "test@example.com")
+                .variable("password", "oldpassword123")
+                .execute()
+                .path("login.token").hasValue();
+    }
+
+    @Test
+    @WithMockUser(username = "test@example.com")
+    void shouldNotChangePasswordWithBlankPasswords() {
+        // Register an account first
+        graphQlTester.documentName("register")
+                .variable("input", Map.of(
+                        "email", "test@example.com",
+                        "password", "oldpassword123"))
+                .execute();
+
+        // Try to change password with blank old password
+        graphQlTester.documentName("changePassword")
+                .variable("input", Map.of(
+                        "oldPassword", "",
+                        "newPassword", "newpassword456"))
+                .execute()
+                .errors().satisfy(err -> assertFalse(err.isEmpty()));
+
+        // Try to change password with blank new password
+        graphQlTester.documentName("changePassword")
+                .variable("input", Map.of(
+                        "oldPassword", "oldpassword123",
+                        "newPassword", ""))
                 .execute()
                 .errors().satisfy(err -> assertFalse(err.isEmpty()));
     }

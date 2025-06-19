@@ -1,6 +1,7 @@
-mutation updateDeployment($id: ID!, $yaml: String!) {
-    updateDeployment(id: $id, composeYaml: $yaml) {
+mutation updateDeployment($id: ID!, $input: UpdateDeploymentDTO!) {
+    updateDeployment(id: $id, input: $input) {
         id
+        name
         composeYaml
     }
 } 

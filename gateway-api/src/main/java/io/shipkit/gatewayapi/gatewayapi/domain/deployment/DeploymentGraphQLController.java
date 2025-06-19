@@ -2,6 +2,9 @@ package io.shipkit.gatewayapi.gatewayapi.domain.deployment;
 
 import docker_control.AppStatus;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.DeploymentStatusDTO;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.CreateDeploymentDTO;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.UpdateDeploymentDTO;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -20,16 +23,16 @@ public class DeploymentGraphQLController {
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public Deployment createDeployment(@Argument String composeYaml) {
-        return deploymentService.createDeployment(composeYaml);
+    public Deployment createDeployment(@Argument @Valid CreateDeploymentDTO input) {
+        return deploymentService.createDeployment(input);
     }
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public Deployment updateDeployment(@Argument UUID id, @Argument String composeYaml) {
-        return deploymentService.updateDeployment(id, composeYaml);
+    public Deployment updateDeployment(@Argument UUID id, @Argument @Valid UpdateDeploymentDTO input) {
+        return deploymentService.updateDeployment(id, input);
     }
-
+    
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
     public boolean deleteDeployment(@Argument UUID id) {

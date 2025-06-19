@@ -1,5 +1,6 @@
-mutation createDeployment($yaml: String!) {
-    createDeployment(composeYaml: $yaml) {
+mutation createDeployment($input: CreateDeploymentDTO!) {
+    createDeployment(input: $input) {
         id
+        name
     }
 } 

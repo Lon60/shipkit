@@ -32,28 +32,32 @@ jobs:
 
       - name: Read version
         id: vars
-        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+      - name: Set lowercase owner
+        id: owner
+        run: echo "owner=$(echo \"${GITHUB_REPOSITORY_OWNER,,}\")" >> $GITHUB_OUTPUT
 
       - name: Build & push docker-control image
         uses: docker/build-push-action@v5
         with:
           context: ./docker-control
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/shipkit-docker-control:latest,ghcr.io/${{ github.repository_owner }}/shipkit-docker-control:${{ steps.vars.outputs.version }}
+          tags: ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-docker-control:latest,ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-docker-control:${{ steps.vars.outputs.version }}
 
       - name: Build & push gateway-api image
         uses: docker/build-push-action@v5
         with:
           context: ./gateway-api
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/shipkit-gateway-api:latest,ghcr.io/${{ github.repository_owner }}/shipkit-gateway-api:${{ steps.vars.outputs.version }}
+          tags: ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-gateway-api:latest,ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-gateway-api:${{ steps.vars.outputs.version }}
 
       - name: Build & push frontend image
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/shipkit-frontend:latest,ghcr.io/${{ github.repository_owner }}/shipkit-frontend:${{ steps.vars.outputs.version }}
+          tags: ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-frontend:latest,ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-frontend:${{ steps.vars.outputs.version }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

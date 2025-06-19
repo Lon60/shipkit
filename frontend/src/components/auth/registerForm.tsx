@@ -9,8 +9,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth';
+import { LoadingSpinner } from '@/components/layout/LoadingSpinner';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -43,82 +44,89 @@ export function RegisterForm() {
         email: data.email,
         password: data.password,
       });
-      toast.success('Account created successfully');
+      toast.success('Admin account created successfully! Welcome to Shipkit.');
       router.push('/');
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error('Failed to create account. Try again.');
+      toast.error('Failed to create admin account. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-md border-border bg-card">
-      <CardHeader>
-        <CardTitle className="text-foreground">Create Account</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Set up your deployment environment
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <Card className="w-full bg-card border-border shadow-lg">
+      <CardContent className="space-y-6 pt-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-foreground">Email</Label>
+            <Label htmlFor="email" className="text-sm font-medium text-card-foreground">
+              Admin Email
+            </Label>
             <Input
               id="email"
               type="email"
-              placeholder="your@email.com"
-              className="bg-background border-border text-foreground"
+              placeholder="admin@yourcompany.com"
+              className="h-11"
               {...register('email')}
             />
             {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+              <p className="text-xs text-destructive mt-1">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-foreground">Password</Label>
+            <Label htmlFor="password" className="text-sm font-medium text-card-foreground">
+              Password
+            </Label>
             <Input
               id="password"
               type="password"
-              placeholder="Create password"
-              className="bg-background border-border text-foreground"
+              placeholder="Create a strong password"
+              className="h-11"
               {...register('password')}
             />
             {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
+              <p className="text-xs text-destructive mt-1">
+                {errors.password.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
+            <Label htmlFor="confirmPassword" className="text-sm font-medium text-card-foreground">
+              Confirm Password
+            </Label>
             <Input
               id="confirmPassword"
               type="password"
-              placeholder="Confirm password"
-              className="bg-background border-border text-foreground"
+              placeholder="Confirm your password"
+              className="h-11"
               {...register('confirmPassword')}
             />
             {errors.confirmPassword && (
-              <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+              <p className="text-xs text-destructive mt-1">
+                {errors.confirmPassword.message}
+              </p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Creating account...' : 'Create Account'}
+          <Button 
+            type="submit" 
+            className="w-full h-11" 
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center space-x-2">
+                <LoadingSpinner size="sm" />
+                <span>Creating Admin Account...</span>
+              </div>
+            ) : (
+              'Create Admin Account'
+            )}
           </Button>
         </form>
-
-        <div className="mt-4 text-center text-sm">
-          <span className="text-muted-foreground">Already have an account? </span>
-          <button
-            onClick={() => router.push('/login')}
-            className="text-primary hover:underline"
-          >
-            Sign in
-          </button>
-        </div>
       </CardContent>
     </Card>
   );

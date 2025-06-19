@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { LoadingPage } from '@/components/layout/LoadingSpinner';
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -36,14 +37,7 @@ export function RouteGuard({
 
   // Show loading state while checking authentication
   if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   // Don't render if user should be redirected
