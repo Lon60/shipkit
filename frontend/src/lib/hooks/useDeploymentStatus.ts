@@ -26,7 +26,7 @@ export function useDeploymentStatus() {
 
   const fetchDeploymentStatus = useCallback((deploymentId: string) => {
     setCurrentFetchingId(deploymentId);
-    fetchStatusForList({ variables: { id: deploymentId } });
+    void fetchStatusForList({ variables: { id: deploymentId } });
   }, [fetchStatusForList]);
 
   const getDeploymentStatus = useCallback((deploymentId: string): string => {
