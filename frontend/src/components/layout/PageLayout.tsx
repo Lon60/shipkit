@@ -91,17 +91,17 @@ export function SplitLayout({
 }: SplitLayoutProps) {
   return (
     <AuthLayout className={className}>
-      <div className={cn("flex w-full", maxWidth)}>
+      <div className={cn("flex w-full flex-col lg:flex-row", maxWidth)}>
         {/* Left Side */}
-        <div className="flex-1 flex items-center justify-end pr-8 lg:pr-12">
+        <div className="flex-1 flex items-center justify-center lg:justify-end px-4 py-8 lg:pr-8 lg:pl-0 lg:py-0">
           {leftContent}
         </div>
 
-        {/* Vertical Divider */}
-        <div className="w-px bg-border self-stretch my-8"></div>
+        {/* Vertical Divider - only on desktop */}
+        <div className="hidden lg:block w-px bg-border self-stretch my-8"></div>
 
         {/* Right Side */}
-        <div className="flex-1 flex items-center justify-start pl-8 lg:pl-12">
+        <div className="flex-1 flex items-center justify-center lg:justify-start px-4 py-8 lg:pl-8 lg:pr-0 lg:py-0">
           {rightContent}
         </div>
       </div>
