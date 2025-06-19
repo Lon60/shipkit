@@ -1,6 +1,6 @@
 services:
   docker-control:
-    image: ghcr.io/lon60/shipkit-docker-control:${VERSION}
+    image: ghcr.io/lon60/shipkit-docker-control:latest
     environment:
       DOCKER_CONTROL_PORT: ${DOCKER_CONTROL_PORT}
       DOCKER_CONTROL_DEPLOYMENTS_DIR: /deployments
@@ -22,7 +22,7 @@ services:
       - shipkit
 
   gateway-api:
-    image: ghcr.io/lon60/shipkit-gateway-api:${VERSION}
+    image: ghcr.io/lon60/shipkit-gateway-api:latest
     depends_on:
       - postgres
       - docker-control
@@ -41,7 +41,7 @@ services:
       - shipkit
 
   frontend:
-    image: ghcr.io/lon60/shipkit-frontend:${VERSION}
+    image: ghcr.io/lon60/shipkit-frontend:latest
     depends_on:
       - gateway-api
     environment:
