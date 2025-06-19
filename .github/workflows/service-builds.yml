@@ -48,6 +48,8 @@ jobs:
       - name: Install deps & build frontend
         if: matrix.service == 'frontend'
         working-directory: frontend
+        env:
+          SKIP_ENV_VALIDATION: "1"
         run: |
           bun install
           bun run build 
