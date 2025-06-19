@@ -16,23 +16,16 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o docker-control-server \
     ./cmd/server
 
-FROM scratch
+FROM docker:24.0.9-cli AS runtime
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /etc/group /etc/group
+COPY --from=builder /app/docker-control-server /usr/local/bin/docker-control-server
 
-COPY --from=builder /app/docker-control-server /docker-control-server
-
-COPY --from=builder --chown=65534:65534 /tmp /deployments
-
-USER 65534:65534
+RUN mkdir -p /deployments && chown root:root /deployments
 
 EXPOSE 50051
 
-ENV DOCKER_CONTROL_PORT=50051
-ENV DOCKER_CONTROL_LOG_LEVEL=info
-ENV DOCKER_CONTROL_DEPLOYMENTS_DIR=/deployments
+ENV DOCKER_CONTROL_PORT=50051 \
+    DOCKER_CONTROL_LOG_LEVEL=info \
+    DOCKER_CONTROL_DEPLOYMENTS_DIR=/deployments
 
-ENTRYPOINT ["/docker-control-server"] 
+ENTRYPOINT ["docker-control-server"] 

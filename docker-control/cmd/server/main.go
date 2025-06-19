@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/shipkit/docker-control/internal/config"
@@ -19,6 +21,14 @@ import (
 
 func main() {
 	cfg := config.Load()
+
+	socketPath := ensureDockerSocket()
+	os.Setenv("DOCKER_HOST", "unix://"+socketPath)
+
+	if _, err := exec.LookPath("docker"); err != nil {
+		fmt.Fprintf(os.Stderr, "Docker CLI not found in PATH: %v\n", err)
+		os.Exit(1)
+	}
 
 	logger, err := setupLogger(cfg.LogLevel)
 	if err != nil {
@@ -101,4 +111,34 @@ func setupLogger(level string) (*zap.Logger, error) {
 	}
 
 	return config.Build()
+}
+
+func ensureDockerSocket() string {
+	const defaultSocket = "/var/run/docker.sock"
+
+	if isValidSocket(defaultSocket) {
+		fmt.Fprintf(os.Stderr, "Using default Docker socket: %s\n", defaultSocket)
+		return defaultSocket
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		altSocket := filepath.Join(homeDir, ".docker", "desktop", "docker.sock")
+		if isValidSocket(altSocket) {
+			fmt.Fprintf(os.Stderr, "Using alternative Docker socket: %s\n", altSocket)
+			return altSocket
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "Docker socket not found in known locations (tried %s and user directory).\n", defaultSocket)
+	os.Exit(1)
+	return ""
+}
+
+func isValidSocket(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeSocket != 0
 }

@@ -5,9 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
+
+func buildDockerEnv() []string {
+	env := os.Environ()
+	if os.Getenv("DOCKER_HOST") == "" {
+		env = append(env, "DOCKER_HOST=unix:///var/run/docker.sock")
+	}
+	return env
+}
 
 type DockerComposeExecutor struct{}
 
@@ -17,6 +26,7 @@ func NewDockerComposeExecutor() *DockerComposeExecutor {
 
 func (e *DockerComposeExecutor) ComposeUp(ctx context.Context, project string, yaml string) error {
 	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", project, "-f", "-", "up", "-d")
+	cmd.Env = buildDockerEnv()
 	cmd.Stdin = bytes.NewBufferString(yaml)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -27,6 +37,7 @@ func (e *DockerComposeExecutor) ComposeUp(ctx context.Context, project string, y
 
 func (e *DockerComposeExecutor) ComposeDown(ctx context.Context, project string) error {
 	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", project, "down", "--remove-orphans")
+	cmd.Env = buildDockerEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("docker compose down failed: %w - output: %s", err, string(output))
@@ -36,6 +47,7 @@ func (e *DockerComposeExecutor) ComposeDown(ctx context.Context, project string)
 
 func (e *DockerComposeExecutor) ComposeStatus(ctx context.Context, project string) (*ComposeStatus, error) {
 	cmd := exec.CommandContext(ctx, "docker", "compose", "-p", project, "ps", "--format", "json")
+	cmd.Env = buildDockerEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("docker compose ps failed: %w - output: %s", err, string(output))
