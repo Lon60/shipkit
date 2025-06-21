@@ -2,7 +2,7 @@ name: Build Services
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "development" ]
 
 jobs:
   build-services:
