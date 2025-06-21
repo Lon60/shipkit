@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { MobileHeader } from '@/components/dashboard/mobileHeader';
 import { CreateDeploymentForm } from '@/components/dashboard/createDeploymentForm';
@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { usePlatformStatus } from '@/lib/hooks/useAdminStatus';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -22,13 +23,20 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
+  const { domainInitialized, loading: statusLoading } = usePlatformStatus();
+
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && !statusLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+
+    if (!isLoading && !statusLoading && isAuthenticated && !domainInitialized && pathname !== '/setup') {
+      router.push('/setup');
+    }
+  }, [isAuthenticated, isLoading, statusLoading, domainInitialized, pathname, router]);
 
   const handleCreateDeployment = () => {
     setIsCreateDialogOpen(true);
@@ -38,11 +46,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     setIsCreateDialogOpen(false);
   };
 
-  if (isLoading) {
+  if (isLoading || statusLoading) {
     return <LoadingPage />;
   }
 
   if (!isAuthenticated) {
+    return null;
+  }
+
+  if (isAuthenticated && !domainInitialized && pathname !== '/setup') {
     return null;
   }
 

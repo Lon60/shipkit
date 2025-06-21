@@ -1,12 +1,15 @@
 import { useQuery } from '@apollo/client';
-import { GET_STATUS, type Status } from '@/lib/graphql';
+import { GET_STATUS, type PlatformStatus } from '@/lib/graphql';
 
-export function useAdminStatus() {
-  const { data, loading, error } = useQuery<{ status: Status }>(GET_STATUS);
+export function usePlatformStatus() {
+  const { data, loading, error } = useQuery<{ status: PlatformStatus }>(GET_STATUS);
 
   return {
     adminInitialized: data?.status?.adminInitialized ?? false,
+    domainInitialized: data?.status?.domainInitialized ?? false,
     loading,
     error,
   };
 } 
+
+export { usePlatformStatus as useAdminStatus }; 

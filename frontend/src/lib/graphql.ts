@@ -102,7 +102,14 @@ export const GET_STATUS = gql`
     status {
       status
       adminInitialized
+      domainInitialized
     }
+  }
+`;
+
+export const SETUP_DOMAIN = gql`
+  mutation SetupDomain($domain: String!, $skipValidation: Boolean) {
+    setupDomain(domain: $domain, skipValidation: $skipValidation)
   }
 `;
 
@@ -152,7 +159,8 @@ export interface DeploymentStatus {
   containers: ContainerStatus[];
 }
 
-export interface Status {
+export interface PlatformStatus {
   status: string;
   adminInitialized: boolean;
+  domainInitialized: boolean;
 } 
