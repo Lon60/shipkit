@@ -8,7 +8,7 @@ export const env = createEnv({
    */
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]),
-    GRAPHQL_URL: z.string().url(),
+    API_BASE_URL: z.string(),
   },
 
   /**
@@ -26,7 +26,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-    GRAPHQL_URL: process.env.GRAPHQL_URL,
+    API_BASE_URL: process.env.API_BASE_URL,
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
   },
   /**

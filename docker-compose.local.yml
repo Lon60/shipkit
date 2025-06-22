@@ -51,7 +51,7 @@ services:
     depends_on:
       - gateway-api
     environment:
-      GRAPHQL_URL: ${GRAPHQL_URL}
+      API_BASE_URL: /api
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
     networks: [shipkit]
 
