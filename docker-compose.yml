@@ -37,6 +37,7 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       DOCKER_CONTROL_HOST: docker-control
       DOCKER_CONTROL_PORT: ${DOCKER_CONTROL_PORT}
+      NGINX_VHOST_OUTPUT_DIR: /etc/nginx/conf.d
     expose:
       - "8080"
     networks:
@@ -60,6 +61,7 @@ services:
 
   nginx:
     image: nginx:1.25-alpine
+    container_name: nginx
     depends_on:
       - gateway-api
     ports:
@@ -76,5 +78,5 @@ networks:
 
 volumes:
   postgres_data:
-  docker_deployments:
+  docker_deployments: 
   nginx_dynamic: 
