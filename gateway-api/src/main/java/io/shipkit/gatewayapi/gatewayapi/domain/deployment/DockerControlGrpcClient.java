@@ -47,6 +47,13 @@ public class DockerControlGrpcClient {
         return blockingStub.getStatus(req);
     }
 
+    public ActionResult reloadNginx(String containerName) {
+        ReloadNginxRequest req = ReloadNginxRequest.newBuilder()
+                .setContainerName(containerName)
+                .build();
+        return blockingStub.reloadNginx(req);
+    }
+
     @PreDestroy
     public void shutdown() {
         if (channel != null && !channel.isShutdown()) {

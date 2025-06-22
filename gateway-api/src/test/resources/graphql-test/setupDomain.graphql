@@ -1,0 +1,3 @@
+mutation setupDomain($domain: String!) {
+  setupDomain(domain: $domain)
+} 
