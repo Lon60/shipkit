@@ -42,13 +42,13 @@ class PlatformSettingGraphQLControllerIntegrationTest {
     @WithMockUser
     void shouldSetupDomain() {
         String domain = "example.com";
-        doNothing().when(domainSetupService).configureDomain(domain);
+        doNothing().when(domainSetupService).configureDomain(domain, eq(false));
 
         graphQlTester.documentName("setupDomain")
                 .variable("domain", domain)
                 .execute()
                 .path("setupDomain").entity(Boolean.class).isEqualTo(true);
 
-        verify(domainSetupService).configureDomain(domain);
+        verify(domainSetupService).configureDomain(domain, eq(false));
     }
 } 
