@@ -467,6 +467,50 @@ func (x *ReloadNginxRequest) GetContainerName() string {
 	return ""
 }
 
+type IssueCertificateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IssueCertificateRequest) Reset() {
+	*x = IssueCertificateRequest{}
+	mi := &file_proto_docker_control_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssueCertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssueCertificateRequest) ProtoMessage() {}
+
+func (x *IssueCertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_docker_control_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssueCertificateRequest.ProtoReflect.Descriptor instead.
+func (*IssueCertificateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_docker_control_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *IssueCertificateRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
 var File_proto_docker_control_proto protoreflect.FileDescriptor
 
 const file_proto_docker_control_proto_rawDesc = "" +
@@ -497,19 +541,22 @@ const file_proto_docker_control_proto_rawDesc = "" +
 	"\x06health\x18\x03 \x01(\tR\x06health\x12\x14\n" +
 	"\x05ports\x18\x04 \x03(\tR\x05ports\";\n" +
 	"\x12ReloadNginxRequest\x12%\n" +
-	"\x0econtainer_name\x18\x01 \x01(\tR\rcontainerName*X\n" +
+	"\x0econtainer_name\x18\x01 \x01(\tR\rcontainerName\"1\n" +
+	"\x17IssueCertificateRequest\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain*X\n" +
 	"\bAppState\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\v\n" +
 	"\aRUNNING\x10\x01\x12\v\n" +
 	"\aSTOPPED\x10\x02\x12\f\n" +
 	"\bSTARTING\x10\x03\x12\f\n" +
 	"\bSTOPPING\x10\x04\x12\t\n" +
-	"\x05ERROR\x10\x052\xcd\x02\n" +
+	"\x05ERROR\x10\x052\xa8\x03\n" +
 	"\x14DockerControlService\x12Q\n" +
 	"\fStartCompose\x12#.docker_control.StartComposeRequest\x1a\x1c.docker_control.ActionResult\x12G\n" +
 	"\aStopApp\x12\x1e.docker_control.StopAppRequest\x1a\x1c.docker_control.ActionResult\x12H\n" +
 	"\tGetStatus\x12 .docker_control.GetStatusRequest\x1a\x19.docker_control.AppStatus\x12O\n" +
-	"\vReloadNginx\x12\".docker_control.ReloadNginxRequest\x1a\x1c.docker_control.ActionResultB)Z'github.com/shipkit/docker-control/protob\x06proto3"
+	"\vReloadNginx\x12\".docker_control.ReloadNginxRequest\x1a\x1c.docker_control.ActionResult\x12Y\n" +
+	"\x10IssueCertificate\x12'.docker_control.IssueCertificateRequest\x1a\x1c.docker_control.ActionResultB)Z'github.com/shipkit/docker-control/protob\x06proto3"
 
 var (
 	file_proto_docker_control_proto_rawDescOnce sync.Once
@@ -524,16 +571,17 @@ func file_proto_docker_control_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_docker_control_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_docker_control_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_proto_docker_control_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_docker_control_proto_goTypes = []any{
-	(AppState)(0),               // 0: docker_control.AppState
-	(*StartComposeRequest)(nil), // 1: docker_control.StartComposeRequest
-	(*StopAppRequest)(nil),      // 2: docker_control.StopAppRequest
-	(*GetStatusRequest)(nil),    // 3: docker_control.GetStatusRequest
-	(*ActionResult)(nil),        // 4: docker_control.ActionResult
-	(*AppStatus)(nil),           // 5: docker_control.AppStatus
-	(*ContainerStatus)(nil),     // 6: docker_control.ContainerStatus
-	(*ReloadNginxRequest)(nil),  // 7: docker_control.ReloadNginxRequest
+	(AppState)(0),                   // 0: docker_control.AppState
+	(*StartComposeRequest)(nil),     // 1: docker_control.StartComposeRequest
+	(*StopAppRequest)(nil),          // 2: docker_control.StopAppRequest
+	(*GetStatusRequest)(nil),        // 3: docker_control.GetStatusRequest
+	(*ActionResult)(nil),            // 4: docker_control.ActionResult
+	(*AppStatus)(nil),               // 5: docker_control.AppStatus
+	(*ContainerStatus)(nil),         // 6: docker_control.ContainerStatus
+	(*ReloadNginxRequest)(nil),      // 7: docker_control.ReloadNginxRequest
+	(*IssueCertificateRequest)(nil), // 8: docker_control.IssueCertificateRequest
 }
 var file_proto_docker_control_proto_depIdxs = []int32{
 	0, // 0: docker_control.AppStatus.state:type_name -> docker_control.AppState
@@ -542,12 +590,14 @@ var file_proto_docker_control_proto_depIdxs = []int32{
 	2, // 3: docker_control.DockerControlService.StopApp:input_type -> docker_control.StopAppRequest
 	3, // 4: docker_control.DockerControlService.GetStatus:input_type -> docker_control.GetStatusRequest
 	7, // 5: docker_control.DockerControlService.ReloadNginx:input_type -> docker_control.ReloadNginxRequest
-	4, // 6: docker_control.DockerControlService.StartCompose:output_type -> docker_control.ActionResult
-	4, // 7: docker_control.DockerControlService.StopApp:output_type -> docker_control.ActionResult
-	5, // 8: docker_control.DockerControlService.GetStatus:output_type -> docker_control.AppStatus
-	4, // 9: docker_control.DockerControlService.ReloadNginx:output_type -> docker_control.ActionResult
-	6, // [6:10] is the sub-list for method output_type
-	2, // [2:6] is the sub-list for method input_type
+	8, // 6: docker_control.DockerControlService.IssueCertificate:input_type -> docker_control.IssueCertificateRequest
+	4, // 7: docker_control.DockerControlService.StartCompose:output_type -> docker_control.ActionResult
+	4, // 8: docker_control.DockerControlService.StopApp:output_type -> docker_control.ActionResult
+	5, // 9: docker_control.DockerControlService.GetStatus:output_type -> docker_control.AppStatus
+	4, // 10: docker_control.DockerControlService.ReloadNginx:output_type -> docker_control.ActionResult
+	4, // 11: docker_control.DockerControlService.IssueCertificate:output_type -> docker_control.ActionResult
+	7, // [7:12] is the sub-list for method output_type
+	2, // [2:7] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -564,7 +614,7 @@ func file_proto_docker_control_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_docker_control_proto_rawDesc), len(file_proto_docker_control_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

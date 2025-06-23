@@ -7,10 +7,15 @@ import { DashboardLayout } from '@/components/dashboard/layout';
 import { PageHeader } from '@/components/layout/PageLayout';
 import { Input } from '@/components/ui/input';
 import { Button as UiButton } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 export default function SetupPage() {
   const [domain, setDomain] = useState('');
+  const [sslEnabled, setSslEnabled] = useState(true);
+  const [forceSsl, setForceSsl] = useState(true);
+
   const [setupDomain, { loading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
       toast.success('Domain configured, reloading...');
@@ -21,7 +26,7 @@ export default function SetupPage() {
         action: {
           label: 'Continue anyway',
           onClick: () => {
-            void setupDomain({ variables: { domain, skipValidation: true } });
+            void setupDomain({ variables: { domain, skipValidation: true, sslEnabled, forceSsl } });
           },
         },
       });
@@ -30,7 +35,7 @@ export default function SetupPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void setupDomain({ variables: { domain } });
+    void setupDomain({ variables: { domain, sslEnabled, forceSsl } });
   };
 
   return (
@@ -44,6 +49,29 @@ export default function SetupPage() {
             onChange={(e) => setDomain(e.target.value)}
             required
           />
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="sslEnabled"
+              checked={sslEnabled}
+              onCheckedChange={(checked) => {
+                const isChecked = Boolean(checked);
+                setSslEnabled(isChecked);
+                if (!isChecked) {
+                  setForceSsl(false);
+                }
+              }}
+            />
+            <Label htmlFor="sslEnabled">Enable SSL (HTTPS)</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="forceSsl"
+              checked={forceSsl}
+              onCheckedChange={(checked) => setForceSsl(Boolean(checked))}
+              disabled={!sslEnabled}
+            />
+            <Label htmlFor="forceSsl">Force HTTPS (Redirect all HTTP traffic to HTTPS)</Label>
+          </div>
           <UiButton type="submit" disabled={loading}>
             {loading ? 'Saving...' : 'Save Domain'}
           </UiButton>

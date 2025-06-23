@@ -54,6 +54,13 @@ public class DockerControlGrpcClient {
         return blockingStub.reloadNginx(req);
     }
 
+    public ActionResult issueCertificate(String domain) {
+        IssueCertificateRequest req = IssueCertificateRequest.newBuilder()
+                .setDomain(domain)
+                .build();
+        return blockingStub.issueCertificate(req);
+    }
+
     @PreDestroy
     public void shutdown() {
         if (channel != null && !channel.isShutdown()) {

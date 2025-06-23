@@ -108,8 +108,16 @@ export const GET_STATUS = gql`
 `;
 
 export const SETUP_DOMAIN = gql`
-  mutation SetupDomain($domain: String!, $skipValidation: Boolean) {
-    setupDomain(domain: $domain, skipValidation: $skipValidation)
+  mutation SetupDomain($domain: String!, $skipValidation: Boolean, $sslEnabled: Boolean, $forceSsl: Boolean) {
+    setupDomain(domain: $domain, skipValidation: $skipValidation, sslEnabled: $sslEnabled, forceSsl: $forceSsl)
+  }
+`;
+
+export const CREATE_ACCOUNT = gql`
+  mutation CreateAccount($input: CreateAccountInput!) {
+    createAccount(input: $input) {
+      token
+    }
   }
 `;
 

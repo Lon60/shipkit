@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	pb "github.com/shipkit/docker-control/proto"
 )
 
 func buildDockerEnv() []string {
@@ -76,6 +78,59 @@ func (e *DockerComposeExecutor) ComposeStatus(ctx context.Context, project strin
 	}
 
 	return &ComposeStatus{Services: services}, nil
+}
+
+func (e *DockerComposeExecutor) ReloadNginx(ctx context.Context, containerName string) error {
+	cmd := exec.CommandContext(ctx, "docker", "exec", containerName, "nginx", "-s", "reload")
+	cmd.Env = buildDockerEnv()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("nginx reload failed: %w - output: %s", err, string(output))
+	}
+	return nil
+}
+
+func (e *DockerComposeExecutor) IssueCertificate(ctx context.Context, domain string) error {
+	cmdArgs := []string{
+		"exec", "certbot",
+		"certbot", "certonly", "--webroot", "-w", "/var/www/certbot",
+		"--email", "admin@" + domain, //TODO: make email configurable
+		"-d", domain,
+		"--rsa-key-size", "4096",
+		"--agree-tos",
+		"--non-interactive",
+	}
+	cmd := exec.CommandContext(ctx, "docker", cmdArgs...)
+	cmd.Env = buildDockerEnv()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("certbot failed: %w - output: %s", err, string(output))
+	}
+	return nil
+}
+
+func (e *DockerComposeExecutor) GetStatus(ctx context.Context, projectName string) (*pb.AppStatus, error) {
+	status, err := e.ComposeStatus(ctx, projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	var containerStatuses []*pb.ContainerStatus
+	for _, s := range status.Services {
+		containerStatuses = append(containerStatuses, &pb.ContainerStatus{
+			Name:   s.Name,
+			State:  s.State,
+			Health: s.Health,
+			Ports:  s.Ports,
+		})
+	}
+
+	return &pb.AppStatus{
+		Uuid:       projectName,
+		Status:     0, // Assuming 0 is OK
+		Message:    "Status retrieved successfully",
+		Containers: containerStatuses,
+	}, nil
 }
 
 func mapToService(elem map[string]any) ServiceStatus {
