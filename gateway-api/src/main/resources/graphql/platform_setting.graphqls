@@ -1,0 +1,13 @@
+type PlatformSetting {
+    id: ID!
+    fqdn: String!
+    createdAt: String!
+}
+
+extend type Mutation {
+    setupDomain(domain: String!, skipValidation: Boolean, sslEnabled: Boolean, forceSsl: Boolean): Boolean!
+}
+
+extend type Query {
+    platformSettings: PlatformSetting
+} 

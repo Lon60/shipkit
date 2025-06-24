@@ -1,6 +1,8 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
+import { trpcClient } from '@/utils/trpc';
+
 // JWT utility function to check if token is expired
 interface JWTPayload {
   sub?: string;
@@ -46,28 +48,26 @@ const clearExpiredToken = () => {
   }
 };
 
-interface ConfigResponse {
-  graphqlUrl: string;
-  appName: string;
-}
-
-const getGraphQLUrl = async (): Promise<string> => {
+// Get config from tRPC
+const getConfig = async () => {
   try {
-    const response = await fetch('/api/config');
-    const config = await response.json() as ConfigResponse;
-    return config.graphqlUrl;
+    const config = await trpcClient.config.query();
+    return config;
   } catch (error) {
-    console.warn('Failed to fetch config, falling back to localhost', error);
-    return 'http://localhost:8080/graphql';
+    console.warn('Failed to fetch config via tRPC, using fallback', error);
+    return {
+      apiBaseUrl: '/api',
+      appName: 'Shipkit',
+    };
   }
 };
 
-// Initialize GraphQL URL - default to fallback for SSR
-let currentGraphQLUrl = 'http://localhost:8080/graphql';
+// Initialize with fallback, will be updated after config is fetched
+let currentApiBaseUrl = '/api';
 
 // Create HTTP link that uses the current URL
 const httpLink = createHttpLink({
-  uri: () => currentGraphQLUrl,
+  uri: () => `${currentApiBaseUrl}/graphql`,
 });
 
 const authLink = setContext((_, { headers }) => {
@@ -120,31 +120,20 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   }
 });
 
-// Initialize the GraphQL URL on client side
-const initializeGraphQLUrl = async () => {
+const initializeConfig = async () => {
   if (typeof window !== 'undefined') {
-    // Check if we have a cached URL first
-    const cachedUrl = sessionStorage.getItem('graphql_url');
-    if (cachedUrl) {
-      currentGraphQLUrl = cachedUrl;
-      return;
-    }
-    
-    // Fetch the URL and update the current URL
     try {
-      const url = await getGraphQLUrl();
-      currentGraphQLUrl = url;
-      sessionStorage.setItem('graphql_url', url);
+      const config = await getConfig();
+      currentApiBaseUrl = config.apiBaseUrl;
     } catch (error) {
-      console.warn('Failed to initialize GraphQL URL, using fallback', error);
-      // Keep using fallback
+      console.warn('Failed to initialize config, using fallback', error);
     }
   }
 };
 
 // Initialize immediately for client-side
 if (typeof window !== 'undefined') {
-  void initializeGraphQLUrl();
+  void initializeConfig();
 }
 
 export const apolloClient = new ApolloClient({

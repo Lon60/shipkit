@@ -12,4 +12,5 @@ import lombok.Setter;
 public class StatusDTO {
     private String status;
     private boolean adminInitialized;
+    private boolean domainInitialized;
 } 

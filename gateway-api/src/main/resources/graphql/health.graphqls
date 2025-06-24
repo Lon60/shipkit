@@ -1,6 +1,7 @@
 type Status {
     status: String!
     adminInitialized: Boolean!
+    domainInitialized: Boolean!
 }
 
 extend type Query {

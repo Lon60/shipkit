@@ -51,7 +51,7 @@ public class DeploymentService {
         
         if (composeChanged) {
             ActionResult stopResult = grpcClient.stopApp(id.toString());
-            if (stopResult.getStatus() != 0) {
+            if (stopResult.getStatus() != 0 && !stopResult.getMessage().toLowerCase().contains("app not found")) {
                 throw new BadRequestException("Failed to stop existing deployment: " + stopResult.getMessage());
             }
             
@@ -71,7 +71,7 @@ public class DeploymentService {
         }
         
         ActionResult result = grpcClient.stopApp(id.toString());
-        if (result.getStatus() != 0) {
+        if (result.getStatus() != 0 && !result.getMessage().toLowerCase().contains("app not found")) {
             throw new BadRequestException("Failed to stop deployment before deletion: " + result.getMessage());
         }
         

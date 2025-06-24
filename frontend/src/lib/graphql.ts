@@ -102,6 +102,21 @@ export const GET_STATUS = gql`
     status {
       status
       adminInitialized
+      domainInitialized
+    }
+  }
+`;
+
+export const SETUP_DOMAIN = gql`
+  mutation SetupDomain($domain: String!, $skipValidation: Boolean, $sslEnabled: Boolean, $forceSsl: Boolean) {
+    setupDomain(domain: $domain, skipValidation: $skipValidation, sslEnabled: $sslEnabled, forceSsl: $forceSsl)
+  }
+`;
+
+export const CREATE_ACCOUNT = gql`
+  mutation CreateAccount($input: CreateAccountInput!) {
+    createAccount(input: $input) {
+      token
     }
   }
 `;
@@ -152,7 +167,8 @@ export interface DeploymentStatus {
   containers: ContainerStatus[];
 }
 
-export interface Status {
+export interface PlatformStatus {
   status: string;
   adminInitialized: boolean;
+  domainInitialized: boolean;
 } 
