@@ -16,8 +16,8 @@ public class PlatformSettingGraphQLController {
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public boolean setupDomain(@Argument String domain, @Argument Boolean skipValidation) {
-        domainSetupService.configureDomain(domain, skipValidation != null && skipValidation);
+    public boolean setupDomain(@Argument String domain, @Argument Boolean skipValidation, @Argument Boolean sslEnabled, @Argument Boolean forceSsl) {
+        domainSetupService.configureDomain(domain, skipValidation != null && skipValidation, sslEnabled != null && sslEnabled, forceSsl != null && forceSsl);
         return true;
     }
 

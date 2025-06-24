@@ -1,3 +1,3 @@
-mutation setupDomain($domain: String!) {
-  setupDomain(domain: $domain)
+mutation setupDomain($domain: String!, $skipValidation: Boolean, $sslEnabled: Boolean, $forceSsl: Boolean) {
+  setupDomain(domain: $domain, skipValidation: $skipValidation, sslEnabled: $sslEnabled, forceSsl: $forceSsl)
 } 

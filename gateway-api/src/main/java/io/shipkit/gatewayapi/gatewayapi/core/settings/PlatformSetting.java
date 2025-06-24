@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "platform_settings")
@@ -16,8 +17,8 @@ import java.time.Instant;
 public class PlatformSetting {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "fqdn", nullable = false, unique = true)
     private String fqdn;
@@ -25,4 +26,8 @@ public class PlatformSetting {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
+
+    private boolean sslEnabled;
+
+    private boolean forceSsl;
 } 

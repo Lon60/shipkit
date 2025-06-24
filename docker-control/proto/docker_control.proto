@@ -11,6 +11,7 @@ service DockerControlService {
   
   rpc GetStatus(GetStatusRequest) returns (AppStatus);
   rpc ReloadNginx(ReloadNginxRequest) returns (ActionResult);
+  rpc IssueCertificate(IssueCertificateRequest) returns (ActionResult);
 }
 
 message StartComposeRequest {
@@ -58,4 +59,8 @@ message ContainerStatus {
 
 message ReloadNginxRequest {
   string container_name = 1;
+}
+
+message IssueCertificateRequest {
+  string domain = 1;
 }

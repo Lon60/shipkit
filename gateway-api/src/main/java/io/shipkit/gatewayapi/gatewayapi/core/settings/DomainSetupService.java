@@ -1,11 +1,15 @@
 package io.shipkit.gatewayapi.gatewayapi.core.settings;
 
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.DockerControlGrpcClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -16,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.InternalServerException;
@@ -27,6 +32,7 @@ public class DomainSetupService {
 
     private final PlatformSettingRepository repository;
     private final DockerControlGrpcClient dockerClient;
+    private final Configuration freemarkerConfig;
 
     @Value("${nginx.vhost.output-dir:/nginx}")
     private String nginxOutputDir;
@@ -34,28 +40,42 @@ public class DomainSetupService {
     @Value("${nginx.reload.container-name:nginx}")
     private String nginxContainerName;
 
-    private static final String VHOST_TEMPLATE_PATH = "/templates/nginx_vhost.ftl";
+    private static final String VHOST_TEMPLATE_NAME = "nginx_vhost.ftl";
 
     @Transactional
-    public void configureDomain(String domain, boolean skipValidation) {
+    public void configureDomain(String domain, boolean skipValidation, boolean sslEnabled, boolean forceSsl) {
         if (!skipValidation) {
             validateDomain(domain);
         }
 
-        if (!repository.existsByFqdn(domain)) {
-            PlatformSetting entity = PlatformSetting.builder()
-                    .fqdn(domain)
-                    .build();
-            repository.save(entity);
+        PlatformSetting entity = repository.findByFqdn(domain).orElse(new PlatformSetting());
+        entity.setFqdn(domain);
+        entity.setSslEnabled(sslEnabled);
+        entity.setForceSsl(forceSsl);
+        repository.save(entity);
+
+        if (sslEnabled) {
+            issueCertificate(domain);
         }
 
-        writeVhostFile(domain);
+        writeVhostFile(domain, sslEnabled, forceSsl);
         reloadNginx();
     }
 
+    private void issueCertificate(String domain) {
+        var result = dockerClient.issueCertificate(domain);
+        if (result.getStatus() != 0) {
+            throw new InternalServerException("Failed to issue certificate for " + domain + ": " + result.getMessage());
+        }
+    }
+
     // Retain backwards compatibility
+    public void configureDomain(String domain, boolean skipValidation) {
+        configureDomain(domain, skipValidation, false, false);
+    }
+
     public void configureDomain(String domain) {
-        configureDomain(domain, false);
+        configureDomain(domain, false, false, false);
     }
 
     private void validateDomain(String domain) {
@@ -93,18 +113,20 @@ public class DomainSetupService {
         }
     }
 
-    private void writeVhostFile(String domain) {
-        try (var in = getClass().getResourceAsStream(VHOST_TEMPLATE_PATH)) {
-            if (in == null) {
-                throw new InternalServerException("Template not found: " + VHOST_TEMPLATE_PATH);
-            }
-            String template = new String(in.readAllBytes());
-            String rendered = template.replace("${domain}", domain);
+    private void writeVhostFile(String domain, boolean sslEnabled, boolean forceSsl) {
+        try {
+            Template template = freemarkerConfig.getTemplate(VHOST_TEMPLATE_NAME);
+            Map<String, Object> model = Map.of(
+                    "domain", domain,
+                    "sslEnabled", sslEnabled,
+                    "forceSsl", forceSsl
+            );
+            String rendered = FreeMarkerTemplateUtils.processTemplateIntoString(template, model);
             Path outPath = Path.of(nginxOutputDir, domain + ".conf");
             Files.createDirectories(outPath.getParent());
             Files.writeString(outPath, rendered);
             log.info("Wrote nginx vhost to {}", outPath);
-        } catch (IOException e) {
+        } catch (IOException | TemplateException e) {
             throw new InternalServerException("Failed to write NGINX vhost file");
         }
     }

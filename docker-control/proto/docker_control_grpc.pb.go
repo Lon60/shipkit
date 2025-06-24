@@ -8,7 +8,6 @@ package proto
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -20,10 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DockerControlService_StartCompose_FullMethodName = "/docker_control.DockerControlService/StartCompose"
-	DockerControlService_StopApp_FullMethodName      = "/docker_control.DockerControlService/StopApp"
-	DockerControlService_GetStatus_FullMethodName    = "/docker_control.DockerControlService/GetStatus"
-	DockerControlService_ReloadNginx_FullMethodName  = "/docker_control.DockerControlService/ReloadNginx"
+	DockerControlService_StartCompose_FullMethodName     = "/docker_control.DockerControlService/StartCompose"
+	DockerControlService_StopApp_FullMethodName          = "/docker_control.DockerControlService/StopApp"
+	DockerControlService_GetStatus_FullMethodName        = "/docker_control.DockerControlService/GetStatus"
+	DockerControlService_ReloadNginx_FullMethodName      = "/docker_control.DockerControlService/ReloadNginx"
+	DockerControlService_IssueCertificate_FullMethodName = "/docker_control.DockerControlService/IssueCertificate"
 )
 
 // DockerControlServiceClient is the client API for DockerControlService service.
@@ -34,6 +34,7 @@ type DockerControlServiceClient interface {
 	StopApp(ctx context.Context, in *StopAppRequest, opts ...grpc.CallOption) (*ActionResult, error)
 	GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*AppStatus, error)
 	ReloadNginx(ctx context.Context, in *ReloadNginxRequest, opts ...grpc.CallOption) (*ActionResult, error)
+	IssueCertificate(ctx context.Context, in *IssueCertificateRequest, opts ...grpc.CallOption) (*ActionResult, error)
 }
 
 type dockerControlServiceClient struct {
@@ -84,6 +85,16 @@ func (c *dockerControlServiceClient) ReloadNginx(ctx context.Context, in *Reload
 	return out, nil
 }
 
+func (c *dockerControlServiceClient) IssueCertificate(ctx context.Context, in *IssueCertificateRequest, opts ...grpc.CallOption) (*ActionResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ActionResult)
+	err := c.cc.Invoke(ctx, DockerControlService_IssueCertificate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DockerControlServiceServer is the server API for DockerControlService service.
 // All implementations must embed UnimplementedDockerControlServiceServer
 // for forward compatibility.
@@ -91,8 +102,8 @@ type DockerControlServiceServer interface {
 	StartCompose(context.Context, *StartComposeRequest) (*ActionResult, error)
 	StopApp(context.Context, *StopAppRequest) (*ActionResult, error)
 	GetStatus(context.Context, *GetStatusRequest) (*AppStatus, error)
-	// Reload the NGINX process within the specified container (e.g., service name "nginx")
 	ReloadNginx(context.Context, *ReloadNginxRequest) (*ActionResult, error)
+	IssueCertificate(context.Context, *IssueCertificateRequest) (*ActionResult, error)
 	mustEmbedUnimplementedDockerControlServiceServer()
 }
 
@@ -114,6 +125,9 @@ func (UnimplementedDockerControlServiceServer) GetStatus(context.Context, *GetSt
 }
 func (UnimplementedDockerControlServiceServer) ReloadNginx(context.Context, *ReloadNginxRequest) (*ActionResult, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReloadNginx not implemented")
+}
+func (UnimplementedDockerControlServiceServer) IssueCertificate(context.Context, *IssueCertificateRequest) (*ActionResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IssueCertificate not implemented")
 }
 func (UnimplementedDockerControlServiceServer) mustEmbedUnimplementedDockerControlServiceServer() {}
 func (UnimplementedDockerControlServiceServer) testEmbeddedByValue()                              {}
@@ -208,6 +222,24 @@ func _DockerControlService_ReloadNginx_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DockerControlService_IssueCertificate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueCertificateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DockerControlServiceServer).IssueCertificate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DockerControlService_IssueCertificate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DockerControlServiceServer).IssueCertificate(ctx, req.(*IssueCertificateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DockerControlService_ServiceDesc is the grpc.ServiceDesc for DockerControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -230,6 +262,10 @@ var DockerControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReloadNginx",
 			Handler:    _DockerControlService_ReloadNginx_Handler,
+		},
+		{
+			MethodName: "IssueCertificate",
+			Handler:    _DockerControlService_IssueCertificate_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

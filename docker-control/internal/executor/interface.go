@@ -1,11 +1,18 @@
 package executor
 
-import "context"
+import (
+	"context"
+
+	pb "github.com/shipkit/docker-control/proto"
+)
 
 type DockerExecutor interface {
-	ComposeUp(ctx context.Context, project string, yaml string) error
-	ComposeDown(ctx context.Context, project string) error
+	ComposeUp(ctx context.Context, projectName string, composeYAML string) error
+	ComposeDown(ctx context.Context, projectName string) error
 	ComposeStatus(ctx context.Context, project string) (*ComposeStatus, error)
+	GetStatus(ctx context.Context, projectName string) (*pb.AppStatus, error)
+	ReloadNginx(ctx context.Context, containerName string) error
+	IssueCertificate(ctx context.Context, domain string) error
 }
 
 type ComposeStatus struct {

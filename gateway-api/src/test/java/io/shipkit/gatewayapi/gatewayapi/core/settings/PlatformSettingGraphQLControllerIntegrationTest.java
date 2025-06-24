@@ -42,13 +42,18 @@ class PlatformSettingGraphQLControllerIntegrationTest {
     @WithMockUser
     void shouldSetupDomain() {
         String domain = "example.com";
-        doNothing().when(domainSetupService).configureDomain(eq(domain), eq(false));
+        boolean sslEnabled = true;
+        boolean forceSsl = true;
+
+        doNothing().when(domainSetupService).configureDomain(eq(domain), eq(false), eq(sslEnabled), eq(forceSsl));
 
         graphQlTester.documentName("setupDomain")
                 .variable("domain", domain)
+                .variable("sslEnabled", sslEnabled)
+                .variable("forceSsl", forceSsl)
                 .execute()
                 .path("setupDomain").entity(Boolean.class).isEqualTo(true);
 
-        verify(domainSetupService).configureDomain(eq(domain), eq(false));
+        verify(domainSetupService).configureDomain(eq(domain), eq(false), eq(sslEnabled), eq(forceSsl));
     }
-} 
+}
