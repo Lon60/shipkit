@@ -98,4 +98,6 @@ volumes:
   docker_deployments: 
   nginx_dynamic: 
   certbot_certs:
+    name: certbot_certs
   certbot_www:
+    name: certbot_www
