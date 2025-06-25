@@ -127,10 +127,14 @@ public class DomainSetupService {
             Files.writeString(outPath, rendered);
             log.info("Wrote nginx vhost to {}", outPath);
 
+            // Overwrite (or create) default.conf so that public IP returns 404 after setup
             Path defaultConfPath = Path.of(nginxOutputDir, "default.conf");
-            if (Files.exists(defaultConfPath)) {
-                Files.delete(defaultConfPath);
-                log.info("Deleted default nginx config at {}", defaultConfPath);
+            try {
+                String defaultContent = "server {\n    listen 80 default_server;\n    server_name _;\n    return 404;\n}\n";
+                Files.writeString(defaultConfPath, defaultContent);
+                log.info("Replaced default nginx config at {}", defaultConfPath);
+            } catch (IOException ioe) {
+                log.warn("Could not update default nginx config: {}", ioe.getMessage());
             }
         } catch (IOException | TemplateException e) {
             throw new InternalServerException("Failed to write NGINX vhost file");
