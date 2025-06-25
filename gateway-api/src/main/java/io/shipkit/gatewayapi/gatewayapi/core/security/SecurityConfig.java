@@ -21,9 +21,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSettingRepository;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSetting;
 
 @Configuration
 @EnableMethodSecurity
@@ -32,6 +32,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final Environment environment;
+    private final PlatformSettingRepository settingRepository;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;
@@ -83,7 +84,17 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+        List<String> origins = new ArrayList<>();
+        if(allowedOrigins != null && !allowedOrigins.isBlank()) {
+            origins.addAll(Arrays.asList(allowedOrigins.split(",")));
+        }
+
+        Optional<PlatformSetting> ps = settingRepository.findTopByOrderByCreatedAtDesc();
+        ps.map(PlatformSetting::getFqdn).filter(f -> !f.isBlank()).ifPresent(fqdn -> {
+            origins.add("https://" + fqdn);
+            origins.add("http://" + fqdn);
+        });
+
         configuration.setAllowedOrigins(origins);
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));

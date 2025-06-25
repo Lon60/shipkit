@@ -18,8 +18,9 @@ export default function SetupPage() {
 
   const [setupDomain, { loading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
-      toast.success('Domain configured, reloading...');
-      window.location.href = '/';
+      const protocol = sslEnabled ? 'https://' : 'http://';
+      toast.success('Domain configured, redirecting...');
+      window.location.href = `${protocol}${domain}`;
     },
     onError: (err) => {
       toast.error(err.message, {
