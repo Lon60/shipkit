@@ -17,11 +17,10 @@ export default function SetupPage() {
   const [forceSsl, setForceSsl] = useState(true);
 
   const [setupDomain, { loading }] = useMutation(SETUP_DOMAIN, {
-    onCompleted: (_data, variables) => {
-      const { domain: fqdn, sslEnabled } = (variables as any) ?? { domain: '', sslEnabled: true };
+    onCompleted: () => {
       const protocol = sslEnabled ? 'https://' : 'http://';
       toast.success('Domain configured, redirecting...');
-      window.location.href = `${protocol}${fqdn}`;
+      window.location.href = `${protocol}${domain}`;
     },
     onError: (err) => {
       toast.error(err.message, {
