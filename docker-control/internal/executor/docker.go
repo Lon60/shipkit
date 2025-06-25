@@ -92,8 +92,11 @@ func (e *DockerComposeExecutor) ReloadNginx(ctx context.Context, containerName s
 
 func (e *DockerComposeExecutor) IssueCertificate(ctx context.Context, domain string) error {
 	cmdArgs := []string{
-		"exec", "certbot",
-		"certbot", "certonly", "--webroot", "-w", "/var/www/certbot",
+		"run", "--rm",
+		"-v", "certbot_certs:/etc/letsencrypt",
+		"-v", "certbot_www:/var/www/certbot",
+		"certbot/certbot",
+		"certonly", "--webroot", "-w", "/var/www/certbot",
 		"--email", "admin@" + domain, //TODO: make email configurable
 		"-d", domain,
 		"--rsa-key-size", "4096",
