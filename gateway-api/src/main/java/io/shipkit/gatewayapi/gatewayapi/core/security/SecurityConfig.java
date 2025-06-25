@@ -89,13 +89,7 @@ public class SecurityConfig {
             origins.addAll(Arrays.asList(allowedOrigins.split(",")));
         }
 
-        Optional<PlatformSetting> ps = settingRepository.findTopByOrderByCreatedAtDesc();
-        ps.map(PlatformSetting::getFqdn).filter(f -> !f.isBlank()).ifPresent(fqdn -> {
-            origins.add("https://" + fqdn);
-            origins.add("http://" + fqdn);
-        });
-
-        configuration.setAllowedOrigins(origins);
+        configuration.addAllowedOriginPattern("*");
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
