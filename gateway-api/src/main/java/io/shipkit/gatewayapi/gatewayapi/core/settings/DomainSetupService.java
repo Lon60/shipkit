@@ -126,6 +126,12 @@ public class DomainSetupService {
             Files.createDirectories(outPath.getParent());
             Files.writeString(outPath, rendered);
             log.info("Wrote nginx vhost to {}", outPath);
+
+            Path defaultConfPath = Path.of(nginxOutputDir, "default.conf");
+            if (Files.exists(defaultConfPath)) {
+                Files.delete(defaultConfPath);
+                log.info("Deleted default nginx config at {}", defaultConfPath);
+            }
         } catch (IOException | TemplateException e) {
             throw new InternalServerException("Failed to write NGINX vhost file");
         }
