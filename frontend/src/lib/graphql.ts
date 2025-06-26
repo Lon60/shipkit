@@ -113,6 +113,16 @@ export const SETUP_DOMAIN = gql`
   }
 `;
 
+export const PLATFORM_SETTINGS = gql`
+  query PlatformSettings {
+    platformSettings {
+      id
+      fqdn
+      createdAt
+    }
+  }
+`;
+
 export const CREATE_ACCOUNT = gql`
   mutation CreateAccount($input: CreateAccountInput!) {
     createAccount(input: $input) {
@@ -165,6 +175,12 @@ export interface DeploymentStatus {
   message: string | null;
   status: number;
   containers: ContainerStatus[];
+}
+
+export interface PlatformSetting {
+  id: string;
+  fqdn: string;
+  createdAt: string;
 }
 
 export interface PlatformStatus {
