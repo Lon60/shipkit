@@ -44,22 +44,56 @@ public class DomainSetupService {
 
     @Transactional
     public void configureDomain(String domain, boolean skipValidation, boolean sslEnabled, boolean forceSsl) {
-        if (!skipValidation) {
-            validateDomain(domain);
+        Path vhostPath = Path.of(nginxOutputDir, domain + ".conf");
+        boolean vhostExistedBefore = Files.exists(vhostPath);
+        String previousVhostContent = null;
+        if (vhostExistedBefore) {
+            try {
+                previousVhostContent = Files.readString(vhostPath);
+            } catch (IOException ioe) {
+                log.warn("Could not read existing vhost content for rollback: {}", ioe.getMessage());
+                vhostExistedBefore = false;
+            }
         }
 
-        PlatformSetting entity = repository.findByFqdn(domain).orElse(new PlatformSetting());
-        entity.setFqdn(domain);
-        entity.setSslEnabled(sslEnabled);
-        entity.setForceSsl(forceSsl);
-        repository.save(entity);
+        try {
+            if (!skipValidation) {
+                validateDomain(domain);
+            }
 
-        if (sslEnabled) {
-            issueCertificate(domain);
+            PlatformSetting entity = repository.findByFqdn(domain).orElse(new PlatformSetting());
+            entity.setFqdn(domain);
+            entity.setSslEnabled(sslEnabled);
+            entity.setForceSsl(forceSsl);
+            repository.save(entity);
+
+            if (sslEnabled) {
+                issueCertificate(domain);
+            }
+
+            writeVhostFile(domain, sslEnabled, forceSsl);
+            reloadNginx();
+        } catch (RuntimeException ex) {
+            try {
+                if (vhostExistedBefore && previousVhostContent != null) {
+                    Files.writeString(vhostPath, previousVhostContent);
+                    log.info("Rolled back vhost file to previous version at {}", vhostPath);
+                } else {
+                    Files.deleteIfExists(vhostPath);
+                    log.info("Removed newly created vhost file at {} due to failure", vhostPath);
+                }
+            } catch (IOException ioe) {
+                log.warn("Failed to rollback vhost file: {}", ioe.getMessage());
+            }
+
+            try {
+                reloadNginx();
+            } catch (Exception re) {
+                log.warn("Failed to reload NGINX during rollback: {}", re.getMessage());
+            }
+
+            throw ex;
         }
-
-        writeVhostFile(domain, sslEnabled, forceSsl);
-        reloadNginx();
     }
 
     private void issueCertificate(String domain) {
