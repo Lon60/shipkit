@@ -75,7 +75,7 @@ public class DomainSetupService {
             reloadNginx();
         } catch (RuntimeException ex) {
             try {
-                if (vhostExistedBefore && previousVhostContent != null) {
+                if (vhostExistedBefore) {
                     Files.writeString(vhostPath, previousVhostContent);
                     log.info("Rolled back vhost file to previous version at {}", vhostPath);
                 } else {
@@ -103,17 +103,7 @@ public class DomainSetupService {
         }
     }
 
-    // Retain backwards compatibility
-    public void configureDomain(String domain, boolean skipValidation) {
-        configureDomain(domain, skipValidation, false, false);
-    }
-
-    public void configureDomain(String domain) {
-        configureDomain(domain, false, false, false);
-    }
-
     private void validateDomain(String domain) {
-        // Basic syntax check
         if (!domain.matches("^[a-zA-Z0-9.-]+$")) {
             throw new BadRequestException("Invalid domain format");
         }
