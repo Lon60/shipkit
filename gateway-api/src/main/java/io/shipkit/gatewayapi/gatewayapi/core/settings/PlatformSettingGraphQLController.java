@@ -1,5 +1,6 @@
 package io.shipkit.gatewayapi.gatewayapi.core.settings;
 
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.ResourceNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -27,6 +28,7 @@ public class PlatformSettingGraphQLController {
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
     public PlatformSetting platformSettings() {
-        return repository.findTopByOrderByCreatedAtDesc().orElse(null);
+        return repository.findTopByOrderByCreatedAtDesc()
+                .orElseThrow(() -> new ResourceNotFoundException("Platform settings not found"));
     }
-} 
+}
