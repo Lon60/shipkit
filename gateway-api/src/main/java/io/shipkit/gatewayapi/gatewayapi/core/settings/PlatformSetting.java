@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "platform_settings")
+@Table
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,14 +20,14 @@ public class PlatformSetting {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "fqdn", nullable = false, unique = true)
+    @Column(nullable = false, unique = true)
     private String fqdn;
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column(updatable = false)
     private Instant createdAt;
 
     private boolean sslEnabled;
 
     private boolean forceSsl;
-} 
+}
