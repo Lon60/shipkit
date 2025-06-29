@@ -45,7 +45,7 @@ class PlatformSettingGraphQLControllerIntegrationTest {
         boolean sslEnabled = true;
         boolean forceSsl = true;
 
-        doNothing().when(domainSetupService).configureDomain(eq(domain), eq(false), eq(sslEnabled), eq(forceSsl));
+        doNothing().when(domainSetupService).configureDomain(domain, false, sslEnabled, forceSsl);
 
         graphQlTester.documentName("setupDomain")
                 .variable("domain", domain)
@@ -54,6 +54,6 @@ class PlatformSettingGraphQLControllerIntegrationTest {
                 .execute()
                 .path("setupDomain").entity(Boolean.class).isEqualTo(true);
 
-        verify(domainSetupService).configureDomain(eq(domain), eq(false), eq(sslEnabled), eq(forceSsl));
+        verify(domainSetupService).configureDomain(domain, false, sslEnabled, forceSsl);
     }
 }
