@@ -5,7 +5,12 @@ type PlatformSetting {
 }
 
 extend type Mutation {
-    setupDomain(domain: String!, skipValidation: Boolean, sslEnabled: Boolean, forceSsl: Boolean): Boolean!
+    setupDomain(
+        domain: String!
+        skipValidation: Boolean = false
+        sslEnabled:     Boolean = true
+        forceSsl:       Boolean = false
+    ): Boolean!
 }
 
 extend type Query {
