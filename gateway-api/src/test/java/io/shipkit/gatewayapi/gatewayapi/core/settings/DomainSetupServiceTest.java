@@ -3,6 +3,8 @@ package io.shipkit.gatewayapi.gatewayapi.core.settings;
 import docker_control.ActionResult;
 import freemarker.cache.StringTemplateLoader;
 import freemarker.template.Configuration;
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.CertificateIssuanceException;
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.DockerControlGrpcClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -85,7 +87,7 @@ class DomainSetupServiceTest {
     void shouldThrowDomainValidationExceptionForInvalidDomain() {
         String invalidDomain = "invalid domain";
 
-        assertThrows(io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException.class,
+        assertThrows(DomainValidationException.class,
                 () -> service.configureDomain(invalidDomain, false, false, false));
     }
 
@@ -94,7 +96,7 @@ class DomainSetupServiceTest {
         ActionResult fail = ActionResult.newBuilder().setStatus(1).setMessage("fail").build();
         when(dockerClient.issueCertificate(DOMAIN)).thenReturn(fail);
 
-        assertThrows(io.shipkit.gatewayapi.gatewayapi.core.exceptions.CertificateIssuanceException.class,
+        assertThrows(CertificateIssuanceException.class,
                 () -> service.configureDomain(DOMAIN, true, true, false));
     }
 } 
