@@ -23,7 +23,6 @@ export default function SettingsPage() {
             <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-1">
               <TabsTrigger value="general" className="py-2">General</TabsTrigger>
               <TabsTrigger value="domain" className="py-2">Domain</TabsTrigger>
-              {/* Add more TabsTrigger for future categories here */}
             </TabsList>
             <TabsContent value="general" className="mt-6">
               <Card>
@@ -47,7 +46,6 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            {/* Add more TabsContent for future categories here */}
           </Tabs>
         </div>
       </div>
