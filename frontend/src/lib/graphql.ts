@@ -119,6 +119,8 @@ export const PLATFORM_SETTINGS = gql`
       id
       fqdn
       createdAt
+      sslEnabled
+      forceSsl
     }
   }
 `;
@@ -181,6 +183,8 @@ export interface PlatformSetting {
   id: string;
   fqdn: string;
   createdAt: string;
+  sslEnabled: boolean;
+  forceSsl: boolean;
 }
 
 export interface PlatformStatus {

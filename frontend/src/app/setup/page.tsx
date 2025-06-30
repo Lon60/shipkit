@@ -31,7 +31,7 @@ export default function SetupPage() {
     },
     onError: (err) => {
       setIsProcessing(false);
-      if (err.message.includes('does not resolve') || err.message.includes('Configure an A record')) {
+      if (err.message.includes('Failed to resolve domain')) {
         const serverIpRegex = /pointing to ([\d.]+)/;
         const serverIpMatch = serverIpRegex.exec(err.message);
         const serverIp = serverIpMatch ? serverIpMatch[1] : 'your server IP';
@@ -105,25 +105,29 @@ export default function SetupPage() {
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-destructive">Domain Setup Required</p>
                   <p className="text-sm text-muted-foreground">{domainError}</p>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p><strong>To fix this:</strong></p>
-                    <ol className="list-decimal list-inside space-y-1 ml-2">
-                      <li>Go to your domain registrar&apos;s DNS management</li>
-                      <li>Create an A record for your domain</li>
-                      <li>Point it to your server&apos;s IP address</li>
-                      <li>Wait for DNS propagation (can take up to 24 hours)</li>
-                    </ol>
-                  </div>
+                  {(domainError.includes('Domain resolution failed')) && (
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <p><strong>To fix this:</strong></p>
+                      <ol className="list-decimal list-inside space-y-1 ml-2">
+                        <li>Go to your domain registrar&apos;s DNS management</li>
+                        <li>Create an A record for your domain</li>
+                        <li>Point it to your server&apos;s IP address</li>
+                        <li>Wait for DNS propagation (can take up to 24 hours)</li>
+                      </ol>
+                    </div>
+                  )}
                   <div className="flex gap-2 mt-3">
-                    <UiButton
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleContinueAnyway}
-                      disabled={loading || isProcessing}
-                    >
-                      Continue Anyway
-                    </UiButton>
+                    {(domainError.includes('Domain resolution failed')) && (
+                      <UiButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleContinueAnyway}
+                        disabled={loading || isProcessing}
+                      >
+                        Continue Anyway
+                      </UiButton>
+                    )}
                     <UiButton
                       type="button"
                       variant="ghost"
@@ -165,12 +169,12 @@ export default function SetupPage() {
           
           {/* Processing Status */}
           {isProcessing && sslEnabled && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-md">
               <div className="flex gap-3">
-                <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0 animate-spin" />
+                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0 animate-spin" />
                 <div>
-                  <p className="text-sm font-medium text-blue-800">Processing SSL Certificate</p>
-                  <p className="text-sm text-blue-600">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Processing SSL Certificate</p>
+                  <p className="text-sm text-blue-600 dark:text-blue-300">
                     Requesting SSL certificate from Let&apos;s Encrypt. This may take a few minutes...
                   </p>
                 </div>
