@@ -80,4 +80,21 @@ class DomainSetupServiceTest {
 
         assertThat(Files.exists(vhostPath)).isFalse();
     }
+
+    @Test
+    void shouldThrowDomainValidationExceptionForInvalidDomain() {
+        String invalidDomain = "invalid domain";
+
+        assertThrows(io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException.class,
+                () -> service.configureDomain(invalidDomain, false, false, false));
+    }
+
+    @Test
+    void shouldThrowCertificateIssuanceExceptionWhenIssuanceFails() {
+        ActionResult fail = ActionResult.newBuilder().setStatus(1).setMessage("fail").build();
+        when(dockerClient.issueCertificate(DOMAIN)).thenReturn(fail);
+
+        assertThrows(io.shipkit.gatewayapi.gatewayapi.core.exceptions.CertificateIssuanceException.class,
+                () -> service.configureDomain(DOMAIN, true, true, false));
+    }
 } 

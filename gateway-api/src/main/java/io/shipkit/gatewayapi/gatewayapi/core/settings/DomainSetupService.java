@@ -23,8 +23,9 @@ import java.time.Duration;
 import java.util.Map;
 
 import docker_control.ActionResult;
-import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.InternalServerException;
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException;
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.CertificateIssuanceException;
 
 @Slf4j
 @Service
@@ -94,14 +95,14 @@ public class DomainSetupService {
     private void issueCertificate(String domain) {
         ActionResult result = dockerClient.issueCertificate(domain);
         if (result.getStatus() != 0) {
-            throw new InternalServerException(
+            throw new CertificateIssuanceException(
                     "Failed to issue certificate for " + domain + ": " + result.getMessage());
         }
     }
 
     private void validateDomain(String domain) {
         if (!domain.matches("^[a-zA-Z0-9.-]+$")) {
-            throw new BadRequestException("Invalid domain format");
+            throw new DomainValidationException("Invalid domain format");
         }
 
         String expectedIp = fetchPublicIp();
@@ -110,7 +111,7 @@ public class DomainSetupService {
             String      resolvedIp = resolved.getHostAddress();
 
             if (!expectedIp.equals(resolvedIp)) {
-                throw new BadRequestException(
+                throw new DomainValidationException(
                         "Domain does not resolve to this server's IP. "
                                 + "Configure an A record for '" + domain + "' pointing to " + expectedIp
                                 + " or continue anyway.");
