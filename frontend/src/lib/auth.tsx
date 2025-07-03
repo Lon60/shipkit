@@ -5,7 +5,7 @@ import { useMutation } from '@apollo/client';
 import { LOGIN_MUTATION, REGISTER_MUTATION, type AuthPayload, type CreateAccountInput, type Account } from './graphql';
 
 interface User {
-  id?: string;
+  id: string;
   email: string;
   authorities: string[];
 }
@@ -85,11 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateUser = useCallback((account: Account): void => {
-    setUser((prev) => {
-      const updated: User = { ...(prev ?? {}), ...account } as User;
-      localStorage.setItem('authUser', JSON.stringify(updated));
-      return updated;
-    });
+    setUser(account);
+    localStorage.setItem('authUser', JSON.stringify(account));
   }, []);
 
   const checkTokenExpiration = useCallback((): boolean => {
@@ -177,10 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         const accountData = data.login.account;
-        const decoded = decodeJWT(authToken);
-        const userId = typeof decoded?.sub === 'string' ? decoded.sub : undefined;
-
-        const userData: User = { id: userId, ...accountData };
+        const userData: User = accountData;
 
         setToken(authToken);
         setUser(userData);
@@ -208,10 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         const accountData = data.register.account;
-        const decoded = decodeJWT(authToken);
-        const userId = typeof decoded?.sub === 'string' ? decoded.sub : undefined;
-
-        const userData: User = { id: userId, ...accountData };
+        const userData: User = accountData;
 
         setToken(authToken);
         setUser(userData);

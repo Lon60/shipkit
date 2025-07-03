@@ -5,6 +5,7 @@ export const REGISTER_MUTATION = gql`
     register(input: $input) {
       token
       account {
+        id
         email
         authorities
       }
@@ -17,6 +18,7 @@ export const LOGIN_MUTATION = gql`
     login(email: $email, password: $password) {
       token
       account {
+        id
         email
         authorities
       }
@@ -102,6 +104,7 @@ export const CHANGE_PASSWORD = gql`
     changePassword(input: $input) {
       token
       account {
+        id
         email
         authorities
       }
@@ -148,6 +151,7 @@ export const CREATE_ACCOUNT = gql`
 export const GET_ACCOUNT = gql`
   query GetAccount($id: ID!) {
     account(id: $id) {
+      id
       email
       authorities
     }
@@ -155,6 +159,7 @@ export const GET_ACCOUNT = gql`
 `;
 
 export interface Account {
+  id: string;
   email: string;
   authorities: string[];
 }
