@@ -29,8 +29,8 @@ cp .env.example .env.local
 Update `.env.local` with your configuration:
 
 ```env
-# GraphQL endpoint (backend API)
-NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8080/graphql
+# BASE-URL of Backend
+API_BASE_URL=http://localhost:8080/api
 
 # Application name
 NEXT_PUBLIC_APP_NAME=Shipkit

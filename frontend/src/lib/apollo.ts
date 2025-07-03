@@ -1,9 +1,9 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
+import { ApolloLink, Observable } from '@apollo/client';
 import { trpcClient } from '@/utils/trpc';
 
-// JWT utility function to check if token is expired
 interface JWTPayload {
   sub?: string;
   exp?: number;
@@ -62,13 +62,52 @@ const getConfig = async () => {
   }
 };
 
-// Initialize with fallback, will be updated after config is fetched
+let configPromise: Promise<{ apiBaseUrl: string; appName: string }> | null = null;
+let configLoaded = false;
 let currentApiBaseUrl = '/api';
 
-// Create HTTP link that uses the current URL
-const httpLink = createHttpLink({
-  uri: () => `${currentApiBaseUrl}/graphql`,
-});
+if (typeof window !== 'undefined') {
+  configPromise = getConfig().then((config) => {
+    currentApiBaseUrl = config.apiBaseUrl;
+    configLoaded = true;
+    return config;
+  }).catch((error) => {
+    console.warn('Failed to load config', error);
+    configLoaded = true;
+    return { apiBaseUrl: '/api', appName: 'Shipkit' };
+  });
+}
+
+const createConfigAwareLink = () => {
+  return new ApolloLink((operation, forward) => {
+    return new Observable((observer) => {
+      if (typeof window === 'undefined' || configLoaded) {
+        const httpLink = createHttpLink({
+          uri: `${currentApiBaseUrl}/graphql`,
+        });
+        return httpLink.request(operation, forward)?.subscribe(observer);
+      }
+
+      if (configPromise) {
+        configPromise.then(() => {
+          const httpLink = createHttpLink({
+            uri: `${currentApiBaseUrl}/graphql`,
+          });
+          httpLink.request(operation, forward)?.subscribe(observer);
+        }).catch((error) => {
+          observer.error(error);
+        });
+      } else {
+        const httpLink = createHttpLink({
+          uri: `${currentApiBaseUrl}/graphql`,
+        });
+        httpLink.request(operation, forward)?.subscribe(observer);
+      }
+    });
+  });
+};
+
+const httpLink = createConfigAwareLink();
 
 const authLink = setContext((_, { headers }) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
@@ -119,22 +158,6 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
     }
   }
 });
-
-const initializeConfig = async () => {
-  if (typeof window !== 'undefined') {
-    try {
-      const config = await getConfig();
-      currentApiBaseUrl = config.apiBaseUrl;
-    } catch (error) {
-      console.warn('Failed to initialize config, using fallback', error);
-    }
-  }
-};
-
-// Initialize immediately for client-side
-if (typeof window !== 'undefined') {
-  void initializeConfig();
-}
 
 export const apolloClient = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),

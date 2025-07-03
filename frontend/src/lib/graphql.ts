@@ -4,6 +4,11 @@ export const REGISTER_MUTATION = gql`
   mutation Register($input: CreateAccountInput!) {
     register(input: $input) {
       token
+      account {
+        id
+        email
+        authorities
+      }
     }
   }
 `;
@@ -12,6 +17,11 @@ export const LOGIN_MUTATION = gql`
   mutation Login($email: String!, $password: String!) {
     login(email: $email, password: $password) {
       token
+      account {
+        id
+        email
+        authorities
+      }
     }
   }
 `;
@@ -93,6 +103,11 @@ export const CHANGE_PASSWORD = gql`
   mutation ChangePassword($input: ChangePasswordInput!) {
     changePassword(input: $input) {
       token
+      account {
+        id
+        email
+        authorities
+      }
     }
   }
 `;
@@ -113,6 +128,18 @@ export const SETUP_DOMAIN = gql`
   }
 `;
 
+export const PLATFORM_SETTINGS = gql`
+  query PlatformSettings {
+    platformSettings {
+      id
+      fqdn
+      createdAt
+      sslEnabled
+      forceSsl
+    }
+  }
+`;
+
 export const CREATE_ACCOUNT = gql`
   mutation CreateAccount($input: CreateAccountInput!) {
     createAccount(input: $input) {
@@ -121,8 +148,25 @@ export const CREATE_ACCOUNT = gql`
   }
 `;
 
+export const GET_ACCOUNT = gql`
+  query GetAccount($id: ID!) {
+    account(id: $id) {
+      id
+      email
+      authorities
+    }
+  }
+`;
+
+export interface Account {
+  id: string;
+  email: string;
+  authorities: string[];
+}
+
 export interface AuthPayload {
   token: string;
+  account: Account;
 }
 
 export interface CreateAccountInput {
@@ -167,8 +211,29 @@ export interface DeploymentStatus {
   containers: ContainerStatus[];
 }
 
+export interface PlatformSetting {
+  id: string;
+  fqdn: string;
+  createdAt: string;
+  sslEnabled: boolean;
+  forceSsl: boolean;
+}
+
 export interface PlatformStatus {
   status: string;
   adminInitialized: boolean;
   domainInitialized: boolean;
+}
+
+export enum ErrorCode {
+  DOMAIN_VALIDATION_ERROR = 'DOMAIN_VALIDATION_ERROR',
+  CERTIFICATE_ISSUANCE_ERROR = 'CERTIFICATE_ISSUANCE_ERROR',
+}
+
+export interface ErrorObject {
+  statusCode: number;
+  message: string;
+  timestamp: string;
+  errors?: Record<string, string>;
+  code?: ErrorCode;
 } 

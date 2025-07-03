@@ -25,7 +25,7 @@ const changePasswordSchema = z.object({
 
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 
-export function ChangePasswordForm() {
+export function GeneralSettingsForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -210,4 +210,4 @@ export function ChangePasswordForm() {
       </CardContent>
     </Card>
   );
-} 
+}

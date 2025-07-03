@@ -9,6 +9,5 @@ import java.util.UUID;
 @Repository
 public interface PlatformSettingRepository extends JpaRepository<PlatformSetting, UUID> {
     Optional<PlatformSetting> findTopByOrderByCreatedAtDesc();
-    boolean existsByFqdn(String fqdn);
     Optional<PlatformSetting> findByFqdn(String fqdn);
 } 
