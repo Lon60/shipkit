@@ -4,6 +4,10 @@ export const REGISTER_MUTATION = gql`
   mutation Register($input: CreateAccountInput!) {
     register(input: $input) {
       token
+      account {
+        email
+        authorities
+      }
     }
   }
 `;
@@ -12,6 +16,10 @@ export const LOGIN_MUTATION = gql`
   mutation Login($email: String!, $password: String!) {
     login(email: $email, password: $password) {
       token
+      account {
+        email
+        authorities
+      }
     }
   }
 `;
@@ -93,6 +101,10 @@ export const CHANGE_PASSWORD = gql`
   mutation ChangePassword($input: ChangePasswordInput!) {
     changePassword(input: $input) {
       token
+      account {
+        email
+        authorities
+      }
     }
   }
 `;
@@ -133,8 +145,23 @@ export const CREATE_ACCOUNT = gql`
   }
 `;
 
+export const GET_ACCOUNT = gql`
+  query GetAccount($id: ID!) {
+    account(id: $id) {
+      email
+      authorities
+    }
+  }
+`;
+
+export interface Account {
+  email: string;
+  authorities: string[];
+}
+
 export interface AuthPayload {
   token: string;
+  account: Account;
 }
 
 export interface CreateAccountInput {
