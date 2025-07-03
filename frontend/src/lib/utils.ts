@@ -12,8 +12,8 @@ export interface DomainError {
   showContinueAnyway: boolean;
 }
 
-export function parseDomainError(error: { graphQLErrors?: ReadonlyArray<{ extensions?: { errorObject?: ErrorObject } }> }): DomainError | null {
-  const errorObject = error.graphQLErrors?.[0]?.extensions?.errorObject;
+export function parseDomainError(error: { graphQLErrors?: ReadonlyArray<{ extensions?: { error?: ErrorObject } }> }): DomainError | null {
+  const errorObject = error.graphQLErrors?.[0]?.extensions?.error;
   
   if (!errorObject?.code) {
     return null;

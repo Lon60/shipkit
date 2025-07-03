@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { SETUP_DOMAIN } from '@/lib/graphql';
 import { parseDomainError, type DomainError } from '@/lib/utils';
+import { ErrorCode } from '@/lib/graphql';
 import { useAuth } from '@/lib/auth';
 import { PageHeader } from '@/components/layout/PageLayout';
-import { DomainErrorDisplay } from '@/components/ui/domainErrorDisplay';
+import { DomainValidationNotice } from '@/components/ui/domain-validation-notice';
+import { CertificateErrorNotice } from '@/components/ui/certificate-error-notice';
 import { Input } from '@/components/ui/input';
 import { Button as UiButton } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -99,12 +101,21 @@ export default function SetupPage() {
           
           {/* Domain Error Section */}
           {domainError && (
-            <DomainErrorDisplay
-              error={domainError}
-              onContinueAnyway={handleContinueAnyway}
-              onTryAgain={() => setDomainError(null)}
-              isLoading={loading || isProcessing}
-            />
+            <>
+              {domainError.code === ErrorCode.DOMAIN_VALIDATION_ERROR && (
+                <DomainValidationNotice
+                  onContinueAnyway={handleContinueAnyway}
+                  onTryAgain={() => setDomainError(null)}
+                  isLoading={loading || isProcessing}
+                />
+              )}
+              {domainError.code === ErrorCode.CERTIFICATE_ISSUANCE_ERROR && (
+                <CertificateErrorNotice
+                  onTryAgain={() => setDomainError(null)}
+                  isLoading={loading || isProcessing}
+                />
+              )}
+            </>
           )}
 
           <div className="flex items-center space-x-2">

@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { SETUP_DOMAIN, PLATFORM_SETTINGS, type PlatformSetting } from '@/lib/graphql';
 import { parseDomainError, type DomainError } from '@/lib/utils';
+import { ErrorCode } from '@/lib/graphql';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { DomainErrorDisplay } from '@/components/ui/domainErrorDisplay';
+import { DomainValidationNotice } from '@/components/ui/domain-validation-notice';
+import { CertificateErrorNotice } from '@/components/ui/certificate-error-notice';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -101,12 +103,21 @@ export function DomainConfig() {
           </div>
 
           {domainError && (
-            <DomainErrorDisplay
-              error={domainError}
-              onContinueAnyway={handleContinueAnyway}
-              onTryAgain={() => setDomainError(null)}
-              isLoading={mutationLoading || isProcessing}
-            />
+            <>
+              {domainError.code === ErrorCode.DOMAIN_VALIDATION_ERROR && (
+                <DomainValidationNotice
+                  onContinueAnyway={handleContinueAnyway}
+                  onTryAgain={() => setDomainError(null)}
+                  isLoading={mutationLoading || isProcessing}
+                />
+              )}
+              {domainError.code === ErrorCode.CERTIFICATE_ISSUANCE_ERROR && (
+                <CertificateErrorNotice
+                  onTryAgain={() => setDomainError(null)}
+                  isLoading={mutationLoading || isProcessing}
+                />
+              )}
+            </>
           )}
 
           <div className="space-y-3">
