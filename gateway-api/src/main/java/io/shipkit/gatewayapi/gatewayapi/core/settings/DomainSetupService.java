@@ -117,7 +117,7 @@ public class DomainSetupService {
                                 + " or continue anyway.");
             }
         } catch (IOException e) {
-            throw new InternalServerException("Failed to resolve domain");
+            throw new DomainValidationException("Failed to resolve domain");
         }
     }
 
