@@ -223,4 +223,17 @@ export interface PlatformStatus {
   status: string;
   adminInitialized: boolean;
   domainInitialized: boolean;
+}
+
+export enum ErrorCode {
+  DOMAIN_VALIDATION_ERROR = 'DOMAIN_VALIDATION_ERROR',
+  CERTIFICATE_ISSUANCE_ERROR = 'CERTIFICATE_ISSUANCE_ERROR',
+}
+
+export interface ErrorObject {
+  statusCode: number;
+  message: string;
+  timestamp: string;
+  errors?: Record<string, string>;
+  code?: ErrorCode;
 } 

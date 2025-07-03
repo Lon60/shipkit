@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client';
 import { SETUP_DOMAIN, PLATFORM_SETTINGS, type PlatformSetting } from '@/lib/graphql';
+import { parseDomainError, type DomainError } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DomainErrorDisplay } from '@/components/ui/domainErrorDisplay';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { AlertCircle, Clock, Globe } from 'lucide-react';
+import { Clock, Globe } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/layout/LoadingSpinner';
 
@@ -16,7 +18,7 @@ export function DomainConfig() {
   const [domain, setDomain] = useState('');
   const [sslEnabled, setSslEnabled] = useState(true);
   const [forceSsl, setForceSsl] = useState(true);
-  const [domainError, setDomainError] = useState<string | null>(null);
+  const [domainError, setDomainError] = useState<DomainError | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { data, loading } = useQuery<{ platformSettings: PlatformSetting }>(PLATFORM_SETTINGS);
@@ -36,13 +38,11 @@ export function DomainConfig() {
     },
     onError: (err) => {
       setIsProcessing(false);
-      if (err.message.includes('Failed to resolve domain')) {
-        const serverIpRegex = /pointing to ([\d.]+)/;
-        const serverIpMatch = serverIpRegex.exec(err.message);
-        const serverIp = serverIpMatch ? serverIpMatch[1] : 'your server IP';
-        setDomainError(`Domain resolution failed. Please create a DNS A record for '${domain}' pointing to ${serverIp}`);
+      const parsedError = parseDomainError(err);
+      if (parsedError) {
+        setDomainError(parsedError);
       } else {
-        setDomainError(err.message);
+        toast.error(err.message);
       }
     },
   });
@@ -52,6 +52,12 @@ export function DomainConfig() {
     setDomainError(null);
     setIsProcessing(true);
     void setupDomain({ variables: { domain, sslEnabled, forceSsl } });
+  };
+
+  const handleContinueAnyway = () => {
+    setDomainError(null);
+    setIsProcessing(true);
+    void setupDomain({ variables: { domain, skipValidation: true, sslEnabled, forceSsl } });
   };
 
   if (loading) {
@@ -95,15 +101,12 @@ export function DomainConfig() {
           </div>
 
           {domainError && (
-            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-              <div className="flex gap-2">
-                <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <p className="font-medium text-destructive mb-1">Domain Setup Required</p>
-                  <p className="text-muted-foreground text-xs">{domainError}</p>
-                </div>
-              </div>
-            </div>
+            <DomainErrorDisplay
+              error={domainError}
+              onContinueAnyway={handleContinueAnyway}
+              onTryAgain={() => setDomainError(null)}
+              isLoading={mutationLoading || isProcessing}
+            />
           )}
 
           <div className="space-y-3">

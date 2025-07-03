@@ -3,21 +3,23 @@
 import { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { SETUP_DOMAIN } from '@/lib/graphql';
+import { parseDomainError, type DomainError } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import { PageHeader } from '@/components/layout/PageLayout';
+import { DomainErrorDisplay } from '@/components/ui/domainErrorDisplay';
 import { Input } from '@/components/ui/input';
 import { Button as UiButton } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { LogOut, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { LogOut, CheckCircle, Clock } from 'lucide-react';
 import { env } from '@/env';
 
 export default function SetupPage() {
   const [domain, setDomain] = useState('');
   const [sslEnabled, setSslEnabled] = useState(true);
   const [forceSsl, setForceSsl] = useState(true);
-  const [domainError, setDomainError] = useState<string | null>(null);
+  const [domainError, setDomainError] = useState<DomainError | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const { logout } = useAuth();
@@ -31,13 +33,11 @@ export default function SetupPage() {
     },
     onError: (err) => {
       setIsProcessing(false);
-      if (err.message.includes('Failed to resolve domain')) {
-        const serverIpRegex = /pointing to ([\d.]+)/;
-        const serverIpMatch = serverIpRegex.exec(err.message);
-        const serverIp = serverIpMatch ? serverIpMatch[1] : 'your server IP';
-        setDomainError(`Domain resolution failed. Please create a DNS A record for '${domain}' pointing to ${serverIp}`);
+      const parsedError = parseDomainError(err);
+      if (parsedError) {
+        setDomainError(parsedError);
       } else {
-        setDomainError(err.message);
+        toast.error(err.message);
       }
     },
   });
@@ -99,47 +99,12 @@ export default function SetupPage() {
           
           {/* Domain Error Section */}
           {domainError && (
-            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-              <div className="flex gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-destructive">Domain Setup Required</p>
-                  <p className="text-sm text-muted-foreground">{domainError}</p>
-                  {(domainError.includes('Domain resolution failed')) && (
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <p><strong>To fix this:</strong></p>
-                      <ol className="list-decimal list-inside space-y-1 ml-2">
-                        <li>Go to your domain registrar&apos;s DNS management</li>
-                        <li>Create an A record for your domain</li>
-                        <li>Point it to your server&apos;s IP address</li>
-                        <li>Wait for DNS propagation (can take up to 24 hours)</li>
-                      </ol>
-                    </div>
-                  )}
-                  <div className="flex gap-2 mt-3">
-                    {(domainError.includes('Domain resolution failed')) && (
-                      <UiButton
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleContinueAnyway}
-                        disabled={loading || isProcessing}
-                      >
-                        Continue Anyway
-                      </UiButton>
-                    )}
-                    <UiButton
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDomainError(null)}
-                    >
-                      Try Again
-                    </UiButton>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <DomainErrorDisplay
+              error={domainError}
+              onContinueAnyway={handleContinueAnyway}
+              onTryAgain={() => setDomainError(null)}
+              isLoading={loading || isProcessing}
+            />
           )}
 
           <div className="flex items-center space-x-2">
