@@ -9,12 +9,14 @@ import org.springframework.security.core.GrantedAuthority;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class AccountInfoDTO {
+    private UUID id;
     private String email;
     private List<String> authorities;
 
@@ -22,6 +24,6 @@ public class AccountInfoDTO {
         List<String> authorities = account.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
-        return new AccountInfoDTO(account.getEmail(), authorities);
+        return new AccountInfoDTO(account.getId(), account.getEmail(), authorities);
     }
 } 

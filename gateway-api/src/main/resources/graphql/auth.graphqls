@@ -25,6 +25,7 @@ type Query {
 }
 
 type Account {
+    id: ID!
     email: String!
     authorities: [String!]!
 }
