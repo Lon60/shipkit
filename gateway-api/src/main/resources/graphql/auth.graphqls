@@ -16,8 +16,15 @@ input ChangePasswordInput {
 
 type AuthPayload {
     token: String!
+    account: Account!
 }
 
 type Query {
     _empty: String
+    account(id: ID!): Account!
+}
+
+type Account {
+    email: String!
+    authorities: [String!]!
 }
