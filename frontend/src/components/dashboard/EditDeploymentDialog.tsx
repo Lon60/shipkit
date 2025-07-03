@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CodeEditor } from '@/components/ui/code-editor';
 import { UPDATE_DEPLOYMENT, GET_DEPLOYMENTS, type Deployment } from '@/lib/graphql';
 
@@ -94,9 +94,12 @@ export function EditDeploymentDialog({ deployment, isOpen, onClose }: EditDeploy
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Deployment</DialogTitle>
+          <DialogDescription>
+            Update your deployment configuration
+          </DialogDescription>
         </DialogHeader>
         
         {deployment && (

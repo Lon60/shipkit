@@ -64,24 +64,25 @@ export default function SetupPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Setup Header with Logout */}
-      <header className="bg-card border-b border-border px-6 py-4">
+      <header className="bg-card border-b border-border px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <h1 className="text-xl font-semibold text-foreground">
+          <h1 className="text-lg sm:text-xl font-semibold text-foreground">
             {env.NEXT_PUBLIC_APP_NAME} Setup
           </h1>
           <UiButton
             variant="ghost"
             onClick={handleLogout}
             className="gap-2"
+            size="sm"
           >
             <LogOut className="h-4 w-4" />
-            Sign Out
+            <span className="hidden sm:inline">Sign Out</span>
           </UiButton>
         </div>
       </header>
 
       {/* Setup Content */}
-      <div className="max-w-xl mx-auto px-6 py-8">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <PageHeader 
           title="Platform Setup" 
           description="Configure your custom domain to complete the setup" 
@@ -130,7 +131,7 @@ export default function SetupPage() {
                 }
               }}
             />
-            <Label htmlFor="sslEnabled">Enable SSL (HTTPS)</Label>
+            <Label htmlFor="sslEnabled" className="text-sm">Enable SSL (HTTPS)</Label>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -140,7 +141,7 @@ export default function SetupPage() {
               onCheckedChange={(checked) => setForceSsl(Boolean(checked))}
               disabled={!sslEnabled}
             />
-            <Label htmlFor="forceSsl">Force HTTPS (Redirect all HTTP traffic to HTTPS)</Label>
+            <Label htmlFor="forceSsl" className="text-sm">Force HTTPS (Redirect all HTTP traffic to HTTPS)</Label>
           </div>
           
           {/* Processing Status */}
@@ -162,7 +163,12 @@ export default function SetupPage() {
             {isProcessing ? (
               <>
                 <Clock className="h-4 w-4 mr-2 animate-spin" />
-                {sslEnabled ? 'Processing SSL Certificate...' : 'Configuring Domain...'}
+                <span className="hidden sm:inline">
+                  {sslEnabled ? 'Processing SSL Certificate...' : 'Configuring Domain...'}
+                </span>
+                <span className="sm:hidden">
+                  {sslEnabled ? 'Processing...' : 'Configuring...'}
+                </span>
               </>
             ) : loading ? (
               <>
