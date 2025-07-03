@@ -35,7 +35,7 @@ export function DeploymentDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{deployment.name}</DialogTitle>
           <DialogDescription>
@@ -50,7 +50,7 @@ export function DeploymentDetailsDialog({
             </div>
           ) : detailStatusData?.deploymentStatus ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium">Status</p>
                   <Badge className={getStatusBadgeColor(detailStatusData.deploymentStatus.state)}>
@@ -59,7 +59,7 @@ export function DeploymentDetailsDialog({
                 </div>
                 <div>
                   <p className="text-sm font-medium">Message</p>
-                  <p className="text-sm text-muted-foreground">{detailStatusData.deploymentStatus.message}</p>
+                  <p className="text-sm text-muted-foreground break-words">{detailStatusData.deploymentStatus.message}</p>
                 </div>
               </div>
               
@@ -69,16 +69,16 @@ export function DeploymentDetailsDialog({
                   <div className="space-y-2">
                     {detailStatusData.deploymentStatus.containers.map((container, index) => (
                       <div key={index} className="border rounded-lg p-3 border-border">
-                        <div className="flex justify-between items-start">
-                          <div>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                          <div className="flex-1">
                             <p className="font-medium">{container.name}</p>
-                            <div className="flex space-x-4 mt-1">
+                            <div className="flex flex-col sm:flex-row sm:space-x-4 mt-1 gap-1 sm:gap-0">
                               <span className="text-sm">State: {container.state}</span>
                               <span className="text-sm">Health: {container.health}</span>
                             </div>
                           </div>
                           {container.ports.length > 0 && (
-                            <div className="text-right">
+                            <div className="text-left sm:text-right">
                               <p className="text-sm font-medium">Ports</p>
                               {container.ports.map((port, portIndex) => (
                                 <p key={portIndex} className="text-sm text-muted-foreground">{port}</p>
