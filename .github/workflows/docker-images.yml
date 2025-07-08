@@ -86,21 +86,21 @@ jobs:
       - name: Build & push docker-control image
         uses: docker/build-push-action@v5
         with:
-          context: ./docker-control
+          context: ./apps/docker-control
           push: true
           tags: ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-docker-control:latest,ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-docker-control:${{ steps.vars.outputs.version }}
 
       - name: Build & push gateway-api image
         uses: docker/build-push-action@v5
         with:
-          context: ./gateway-api
+          context: ./apps/gateway-api
           push: true
           tags: ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-gateway-api:latest,ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-gateway-api:${{ steps.vars.outputs.version }}
 
       - name: Build & push frontend image
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: ./apps/frontend
           push: true
           tags: ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-frontend:latest,ghcr.io/${{ steps.owner.outputs.owner }}/shipkit-frontend:${{ steps.vars.outputs.version }}
 

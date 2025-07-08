@@ -49,26 +49,26 @@ jobs:
           ROOT_VERSION=$(cat VERSION)
           echo "Root version: $ROOT_VERSION"
 
-          FE_VERSION=$(grep -oP '"version"\s*:\s*"([^"]+)"' frontend/package.json | head -1 | sed -E 's/.*"([^"]+)"/\1/')
+          FE_VERSION=$(grep -oP '"version"\s*:\s*"([^"]+)"' apps/frontend/package.json | head -1 | sed -E 's/.*"([^"]+)"/\1/')
           echo "Frontend version: $FE_VERSION"
           if [[ "$FE_VERSION" != "$ROOT_VERSION" ]]; then
-            echo "::error::frontend/package.json version ($FE_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
+            echo "::error::apps/frontend/package.json version ($FE_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
           fi
 
-          GA_VERSION=$(awk -F"'" '/^version[[:space:]]*=/{print $2; exit}' gateway-api/build.gradle)
+          GA_VERSION=$(awk -F"'" '/^version[[:space:]]*=/{print $2; exit}' apps/gateway-api/build.gradle)
           echo "Gateway-api version: $GA_VERSION"
           if [[ "$GA_VERSION" != "$ROOT_VERSION" ]]; then
-            echo "::error::gateway-api/build.gradle version ($GA_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
+            echo "::error::apps/gateway-api/build.gradle version ($GA_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
           fi
 
-          if [[ -f docker-control/VERSION ]]; then
-            DC_VERSION=$(cat docker-control/VERSION)
+          if [[ -f apps/docker-control/VERSION ]]; then
+            DC_VERSION=$(cat apps/docker-control/VERSION)
             echo "Docker-control version: $DC_VERSION"
             if [[ "$DC_VERSION" != "$ROOT_VERSION" ]]; then
-              echo "::error::docker-control/VERSION ($DC_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
+              echo "::error::apps/docker-control/VERSION ($DC_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
             fi
           else
-            echo "::error::docker-control/VERSION file missing" && exit 1
+            echo "::error::apps/docker-control/VERSION file missing" && exit 1
           fi
 
       - name: Validate Release Notes section

@@ -25,7 +25,7 @@ jobs:
 
       - name: Build gateway-api
         if: matrix.service == 'gateway-api'
-        working-directory: gateway-api
+        working-directory: apps/gateway-api
         run: ./gradlew build --no-daemon
 
       - name: Set up Go 1.x (only for docker-control)
@@ -36,7 +36,7 @@ jobs:
 
       - name: Build docker-control
         if: matrix.service == 'docker-control'
-        working-directory: docker-control
+        working-directory: apps/docker-control
         run: make build
 
       - name: Set up Bun (only for frontend)
@@ -47,7 +47,7 @@ jobs:
 
       - name: Install deps & build frontend
         if: matrix.service == 'frontend'
-        working-directory: frontend
+        working-directory: apps/frontend
         env:
           SKIP_ENV_VALIDATION: "1"
         run: |
