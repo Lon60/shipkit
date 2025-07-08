@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -29,10 +28,6 @@ export function DeleteConfirmationDialog({
     if (!deleteLoading) {
       onClose();
     }
-  };
-
-  const handleConfirm = () => {
-    onConfirm();
   };
 
   return (
