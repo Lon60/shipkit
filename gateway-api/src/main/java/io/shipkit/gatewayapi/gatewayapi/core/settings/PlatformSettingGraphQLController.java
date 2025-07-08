@@ -1,5 +1,6 @@
 package io.shipkit.gatewayapi.gatewayapi.core.settings;
 
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.ResourceNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -16,14 +17,18 @@ public class PlatformSettingGraphQLController {
 
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
-    public boolean setupDomain(@Argument String domain, @Argument Boolean skipValidation, @Argument Boolean sslEnabled, @Argument Boolean forceSsl) {
-        domainSetupService.configureDomain(domain, skipValidation != null && skipValidation, sslEnabled != null && sslEnabled, forceSsl != null && forceSsl);
+    public boolean setupDomain(@Argument String domain,
+                               @Argument boolean skipValidation,
+                               @Argument boolean sslEnabled,
+                               @Argument boolean forceSsl) {
+        domainSetupService.configureDomain(domain, skipValidation, sslEnabled, forceSsl);
         return true;
     }
 
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
     public PlatformSetting platformSettings() {
-        return repository.findTopByOrderByCreatedAtDesc().orElse(null);
+        return repository.findTopByOrderByCreatedAtDesc()
+                .orElseThrow(() -> new ResourceNotFoundException("Platform settings not found"));
     }
-} 
+}

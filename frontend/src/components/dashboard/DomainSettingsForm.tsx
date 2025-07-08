@@ -1,37 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { useMutation } from '@apollo/client';
-import { SETUP_DOMAIN } from '@/lib/graphql';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@apollo/client';
+import { SETUP_DOMAIN, PLATFORM_SETTINGS, type PlatformSetting } from '@/lib/graphql';
 import { parseDomainError, type DomainError } from '@/lib/utils';
 import { ErrorCode } from '@/lib/graphql';
-import { useAuth } from '@/lib/auth';
-import { PageHeader } from '@/components/layout/PageLayout';
-import { DomainValidationNotice } from '@/components/ui/domain-validation-notice';
-import { CertificateErrorNotice } from '@/components/ui/certificate-error-notice';
 import { Input } from '@/components/ui/input';
 import { Button as UiButton } from '@/components/ui/button';
+import { DomainValidationNotice } from '@/components/ui/domain-validation-notice';
+import { CertificateErrorNotice } from '@/components/ui/certificate-error-notice';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { LogOut, CheckCircle, Clock } from 'lucide-react';
-import { env } from '@/env';
+import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingSpinner } from '@/components/layout/LoadingSpinner';
 
-export default function SetupPage() {
+export function DomainSettingsForm() {
   const [domain, setDomain] = useState('');
   const [sslEnabled, setSslEnabled] = useState(true);
   const [forceSsl, setForceSsl] = useState(true);
   const [domainError, setDomainError] = useState<DomainError | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  const { logout } = useAuth();
 
-  const [setupDomain, { loading }] = useMutation(SETUP_DOMAIN, {
+  const { data, loading: queryLoading, error: queryError } = useQuery<{ platformSettings: PlatformSetting }>(PLATFORM_SETTINGS);
+
+  useEffect(() => {
+    if (data?.platformSettings) {
+      setDomain(data.platformSettings.fqdn);
+      setSslEnabled(data.platformSettings.sslEnabled);
+      setForceSsl(data.platformSettings.forceSsl);
+    }
+  }, [data]);
+
+  const [setupDomain, { loading: mutationLoading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
-      const protocol = sslEnabled ? 'https://' : 'http://';
-      toast.success('Domain configured successfully! Redirecting...');
+      toast.success('Domain configured successfully!');
       setIsProcessing(false);
-      window.location.href = `${protocol}${domain}`;
     },
     onError: (err) => {
       setIsProcessing(false);
@@ -57,38 +62,47 @@ export default function SetupPage() {
     void setupDomain({ variables: { domain, skipValidation: true, sslEnabled, forceSsl } });
   };
 
-  const handleLogout = () => {
-    logout();
-  };
+  if (queryLoading) {
+    return (
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle>Domain Configuration</CardTitle>
+          <CardDescription>Loading current domain settings...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center h-32">
+          <LoadingSpinner size="lg" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (queryError) {
+    return (
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle>Domain Configuration</CardTitle>
+          <CardDescription>Error loading domain settings.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+            <div className="flex gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-destructive">Error: {queryError.message}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Setup Header with Logout */}
-      <header className="bg-card border-b border-border px-4 sm:px-6 py-4">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <h1 className="text-lg sm:text-xl font-semibold text-foreground">
-            {env.NEXT_PUBLIC_APP_NAME} Setup
-          </h1>
-          <UiButton
-            variant="ghost"
-            onClick={handleLogout}
-            className="gap-2"
-            size="sm"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </UiButton>
-        </div>
-      </header>
-
-      {/* Setup Content */}
-      <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <PageHeader 
-          title="Platform Setup" 
-          description="Configure your custom domain to complete the setup" 
-        />
-        
-        <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+    <Card className="bg-card border-border">
+      <CardHeader>
+        <CardTitle>Domain Configuration</CardTitle>
+        <CardDescription>Update your custom domain and SSL settings.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="domain">Domain</Label>
             <Input
@@ -99,21 +113,20 @@ export default function SetupPage() {
               required
             />
           </div>
-          
-          {/* Domain Error Section */}
+
           {domainError && (
             <>
               {domainError.code === ErrorCode.DOMAIN_VALIDATION_ERROR && (
                 <DomainValidationNotice
                   onContinueAnyway={handleContinueAnyway}
                   onTryAgain={() => setDomainError(null)}
-                  isLoading={loading || isProcessing}
+                  isLoading={mutationLoading || isProcessing}
                 />
               )}
               {domainError.code === ErrorCode.CERTIFICATE_ISSUANCE_ERROR && (
                 <CertificateErrorNotice
                   onTryAgain={() => setDomainError(null)}
-                  isLoading={loading || isProcessing}
+                  isLoading={mutationLoading || isProcessing}
                 />
               )}
             </>
@@ -131,9 +144,9 @@ export default function SetupPage() {
                 }
               }}
             />
-            <Label htmlFor="sslEnabled" className="text-sm">Enable SSL (HTTPS)</Label>
+            <Label htmlFor="sslEnabled">Enable SSL (HTTPS)</Label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox
               id="forceSsl"
@@ -141,10 +154,9 @@ export default function SetupPage() {
               onCheckedChange={(checked) => setForceSsl(Boolean(checked))}
               disabled={!sslEnabled}
             />
-            <Label htmlFor="forceSsl" className="text-sm">Force HTTPS (Redirect all HTTP traffic to HTTPS)</Label>
+            <Label htmlFor="forceSsl">Force HTTPS (Redirect all HTTP traffic to HTTPS)</Label>
           </div>
-          
-          {/* Processing Status */}
+
           {isProcessing && sslEnabled && (
             <div className="p-4 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-md">
               <div className="flex gap-3">
@@ -158,19 +170,14 @@ export default function SetupPage() {
               </div>
             </div>
           )}
-          
-          <UiButton type="submit" disabled={loading || isProcessing} className="w-full">
+
+          <UiButton type="submit" disabled={mutationLoading || isProcessing} className="w-full">
             {isProcessing ? (
               <>
                 <Clock className="h-4 w-4 mr-2 animate-spin" />
-                <span className="hidden sm:inline">
-                  {sslEnabled ? 'Processing SSL Certificate...' : 'Configuring Domain...'}
-                </span>
-                <span className="sm:hidden">
-                  {sslEnabled ? 'Processing...' : 'Configuring...'}
-                </span>
+                {sslEnabled ? 'Processing SSL Certificate...' : 'Configuring Domain...'}
               </>
-            ) : loading ? (
+            ) : mutationLoading ? (
               <>
                 <Clock className="h-4 w-4 mr-2 animate-spin" />
                 Validating...
@@ -178,21 +185,12 @@ export default function SetupPage() {
             ) : (
               <>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Complete Setup
+                Save Changes
               </>
             )}
           </UiButton>
         </form>
-        
-        {/* Help Section */}
-        <div className="mt-8 p-4 bg-muted/50 rounded-md">
-          <h3 className="text-sm font-medium text-foreground mb-2">Need Help?</h3>
-          <p className="text-sm text-muted-foreground">
-            If you&apos;re having trouble with domain setup, make sure your domain&apos;s A record points to this server&apos;s IP address. 
-            DNS changes can take up to 24 hours to propagate worldwide.
-          </p>
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
-} 
+}

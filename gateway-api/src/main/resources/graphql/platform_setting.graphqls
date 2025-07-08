@@ -2,12 +2,19 @@ type PlatformSetting {
     id: ID!
     fqdn: String!
     createdAt: String!
+    sslEnabled: Boolean!
+    forceSsl: Boolean!
 }
 
 extend type Mutation {
-    setupDomain(domain: String!, skipValidation: Boolean, sslEnabled: Boolean, forceSsl: Boolean): Boolean!
+    setupDomain(
+        domain:        String!
+        skipValidation: Boolean = false
+        sslEnabled:     Boolean = true
+        forceSsl:       Boolean = false
+    ): Boolean!
 }
 
 extend type Query {
     platformSettings: PlatformSetting
-} 
+}

@@ -63,12 +63,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar onCreateDeployment={handleCreateDeployment} />
       <MobileHeader onCreateDeployment={handleCreateDeployment} />
       
-      <main className="md:ml-64 min-h-screen bg-background">
+      <main className="md:ml-64 min-h-screen bg-background px-2 sm:px-0">
         {children}
       </main>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Deployment</DialogTitle>
             <DialogDescription>

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Dialog, 
   DialogContent, 
@@ -8,7 +7,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from '@/components/ui/dialog';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { type Deployment } from '@/lib/graphql';
 
 interface DeleteConfirmationDialogProps {
@@ -26,63 +25,65 @@ export function DeleteConfirmationDialog({
   onClose,
   onConfirm
 }: DeleteConfirmationDialogProps) {
-  const [confirmText, setConfirmText] = useState('');
-
   const handleClose = () => {
-    setConfirmText('');
-    onClose();
+    if (!deleteLoading) {
+      onClose();
+    }
   };
 
-  const isConfirmDisabled = !deployment || confirmText !== deployment.name || deleteLoading;
+  const handleConfirm = () => {
+    onConfirm();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-destructive">
-            <AlertTriangle className="h-5 w-5" />
-            Delete Deployment
-          </DialogTitle>
+          <DialogTitle>Delete Deployment</DialogTitle>
           <DialogDescription>
-            This action cannot be undone. This will permanently delete the deployment and all associated data.
+            Are you sure you want to delete this deployment?
           </DialogDescription>
         </DialogHeader>
         
-        {deployment && (
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium mb-2">
-                Please type <span className="font-mono bg-muted px-1 rounded text-destructive">{deployment.name}</span> to confirm:
-              </p>
-              <Input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="Enter deployment name"
-                className="font-mono"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive" 
-                disabled={isConfirmDisabled}
-                onClick={onConfirm}
-              >
-                {deleteLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete Deployment'
-                )}
-              </Button>
-            </div>
+        <div className="space-y-4">
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-sm font-medium text-destructive">
+              Warning: This action cannot be undone
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Deployment &quot;{deployment?.name}&quot; will be permanently deleted and all associated containers will be stopped.
+            </p>
           </div>
-        )}
+          
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={handleClose}
+              className="flex-1"
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={onConfirm}
+              disabled={deleteLoading}
+              className="flex-1"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

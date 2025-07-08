@@ -22,8 +22,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.*;
-import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSettingRepository;
-import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSetting;
 
 @Configuration
 @EnableMethodSecurity
@@ -32,7 +30,6 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final Environment environment;
-    private final PlatformSettingRepository settingRepository;
 
     @Value("${cors.allowed-origins}")
     private String allowedOrigins;

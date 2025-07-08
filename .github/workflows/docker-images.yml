@@ -1,11 +1,13 @@
 name: Build & Push Docker Images
 
 on:
-  push:
+  pull_request:
+    types: [ closed ]
     branches: [ "main" ]
 
 jobs:
   build-and-push:
+    if: github.event.pull_request.merged == true
     name: Build & Push Images
     runs-on: ubuntu-latest
 
@@ -16,6 +18,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -33,6 +38,46 @@ jobs:
       - name: Read version
         id: vars
         run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+      - name: Extract Release Notes
+        id: notes
+        run: |
+          NOTES=$(printf "%s\n" "$PR_BODY" | awk '/^##[[:space:]]+Release Notes/{flag=1;next}/^##/{flag=0}flag')
+          NOTES=$(echo "$NOTES" | sed '/^[[:space:]]*$/d')
+          if [[ -z "$NOTES" ]]; then
+            echo "::error::No Release Notes found in pull request body under '## Release Notes' section" && exit 1
+          fi
+          # Set multiline output
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+
+      - name: Determine previous tag
+        id: prev_tag
+        run: |
+          git fetch --tags --quiet
+          PREV_TAG=$(git describe --tags --abbrev=0 ${{ github.event.pull_request.base.sha }} 2>/dev/null || echo "")
+          echo "tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate New Contributors section
+        id: contributors
+        run: |
+          if [[ -z "${{ steps.prev_tag.outputs.tag }}" ]]; then
+            RANGE=""
+          else
+            RANGE="${{ steps.prev_tag.outputs.tag }}..${{ github.event.pull_request.merge_commit_sha }}"
+          fi
+          CONTRIBUTORS=$(git log $RANGE --format='%aN <%aE>' | sort -u)
+          if [[ -z "$CONTRIBUTORS" ]]; then
+            CONTRIBUTORS="None"
+          else
+            CONTRIBUTORS=$(echo "$CONTRIBUTORS" | while read line; do echo "- $line"; done)
+          fi
+          echo "text<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTRIBUTORS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Set lowercase owner
         id: owner
@@ -64,6 +109,11 @@ jobs:
         with:
           tag_name: "v${{ steps.vars.outputs.version }}"
           name: "shipkit ${{ steps.vars.outputs.version }}"
-          generate_release_notes: true
+          body: |
+            ## Release Notes
+            ${{ steps.notes.outputs.notes }}
+
+            ## New Contributors
+            ${{ steps.contributors.outputs.text }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

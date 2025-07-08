@@ -5,6 +5,7 @@ import io.shipkit.gatewayapi.gatewayapi.core.exceptions.UnauthorizedException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
 import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AuthPayloadDTO;
 import io.shipkit.gatewayapi.gatewayapi.core.security.jwt.JwtService;
+import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AccountInfoDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -13,6 +14,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -37,7 +39,7 @@ public class AccountService {
                 .build();
         Account account =  accountRepository.save(newAccount);
         String token = jwtService.generateToken(account);
-        return new AuthPayloadDTO(token);
+        return new AuthPayloadDTO(token, AccountInfoDTO.from(account));
     }
 
     @Transactional(readOnly = true)
@@ -48,7 +50,7 @@ public class AccountService {
             );
             Account account = (Account) auth.getPrincipal();
             String token = jwtService.generateToken(account);
-            return new AuthPayloadDTO(token);
+            return new AuthPayloadDTO(token, AccountInfoDTO.from(account));
         } catch (AuthenticationException ex) {
             throw new UnauthorizedException("Bad Credentials");
         }
@@ -72,6 +74,13 @@ public class AccountService {
         accountRepository.save(account);
 
         String token = jwtService.generateToken(account);
-        return new AuthPayloadDTO(token);
+        return new AuthPayloadDTO(token, AccountInfoDTO.from(account));
+    }
+
+    @Transactional(readOnly = true)
+    public AccountInfoDTO getAccountById(UUID id) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new io.shipkit.gatewayapi.gatewayapi.core.exceptions.ResourceNotFoundException("Account not found: " + id));
+        return AccountInfoDTO.from(account);
     }
 }

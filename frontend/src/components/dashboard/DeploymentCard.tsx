@@ -49,26 +49,29 @@ export function DeploymentCard({
       className="border-border bg-card cursor-pointer hover:bg-accent/50 transition-colors" 
       onClick={handleCardClick}
     >
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-base text-foreground">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base text-foreground mb-2">
               {deployment.name}
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              ID: {deployment.id}
-              <br />
-              Created: {formatDate(deployment.createdAt)}
+            <CardDescription className="text-muted-foreground space-y-1">
+              <div className="text-xs">
+                ID: {deployment.id}
+              </div>
+              <div className="text-xs">
+                Created: {formatDate(deployment.createdAt)}
+              </div>
               {status !== 'unknown' && (
-                <span className="ml-2">
-                  <Badge className={getStatusBadgeColor(status)}>
+                <div className="pt-1">
+                  <Badge className={getStatusBadgeColor(status)} variant="outline">
                     {status}
                   </Badge>
-                </span>
+                </div>
               )}
             </CardDescription>
           </div>
-          <div onClick={handleActionsClick}>
+          <div className="flex-shrink-0 self-start" onClick={handleActionsClick}>
             <DeploymentActions
               isStopped={isStopped}
               status={status}

@@ -13,4 +13,5 @@ public class ErrorObject {
     private String message;
     private Date timestamp;
     private Map<String, String> errors;
+    private ErrorCode code;
 }

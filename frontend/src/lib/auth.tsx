@@ -2,10 +2,12 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useMutation } from '@apollo/client';
-import { LOGIN_MUTATION, REGISTER_MUTATION, type AuthPayload, type CreateAccountInput } from './graphql';
+import { LOGIN_MUTATION, REGISTER_MUTATION, type AuthPayload, type CreateAccountInput, type Account } from './graphql';
 
 interface User {
+  id: string;
   email: string;
+  authorities: string[];
 }
 
 interface AuthContextType {
@@ -16,6 +18,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (input: CreateAccountInput) => Promise<void>;
   logout: () => void;
+  updateUser: (account: Account) => void;
 }
 
 interface JWTPayload {
@@ -79,6 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
+  }, []);
+
+  const updateUser = useCallback((account: Account): void => {
+    setUser(account);
+    localStorage.setItem('authUser', JSON.stringify(account));
   }, []);
 
   const checkTokenExpiration = useCallback((): boolean => {
@@ -158,14 +166,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variables: { email, password },
       });
 
-      if (data?.login?.token) {
+      if (data?.login?.token && data.login.account) {
         const authToken = data.login.token;
         
         if (isTokenExpired(authToken)) {
           throw new Error('Received expired token');
         }
         
-        const userData = { email };
+        const accountData = data.login.account;
+        const userData: User = accountData;
 
         setToken(authToken);
         setUser(userData);
@@ -185,14 +194,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variables: { input },
       });
 
-      if (data?.register?.token) {
+      if (data?.register?.token && data.register.account) {
         const authToken = data.register.token;
         
         if (isTokenExpired(authToken)) {
           throw new Error('Received expired token');
         }
         
-        const userData = { email: input.email };
+        const accountData = data.register.account;
+        const userData: User = accountData;
 
         setToken(authToken);
         setUser(userData);
@@ -216,6 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     logout,
+    updateUser,
   };
 
   return (

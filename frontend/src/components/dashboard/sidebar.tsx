@@ -91,7 +91,7 @@ export function Sidebar({ onCreateDeployment }: SidebarProps) {
       {/* Footer */}
       <div className="px-4 py-4 border-t border-border space-y-2">
         <div className="text-xs text-muted-foreground">
-          Made By Lon60
+          Shipkit v{process.env.APP_VERSION}
         </div>
         <a
           href="https://github.com/Lon60/shipkit"
