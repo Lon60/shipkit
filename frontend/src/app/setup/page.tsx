@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useMutation } from '@apollo/client';
-import { SETUP_DOMAIN } from '@/lib/graphql';
+import { useState, useEffect } from 'react';
+import { useMutation, useQuery } from '@apollo/client';
+import { SETUP_DOMAIN, GET_STATUS, PLATFORM_SETTINGS, type PlatformStatus, type PlatformSetting } from '@/lib/graphql';
 import { parseDomainError, type DomainError } from '@/lib/utils';
 import { ErrorCode } from '@/lib/graphql';
 import { useAuth } from '@/lib/auth';
@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { LogOut, CheckCircle, Clock } from 'lucide-react';
 import { env } from '@/env';
+import { LoadingSpinner } from '@/components/layout/LoadingSpinner';
+import { useRouter } from 'next/navigation';
 
 export default function SetupPage() {
   const [domain, setDomain] = useState('');
@@ -25,6 +27,12 @@ export default function SetupPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   
   const { logout } = useAuth();
+  const router = useRouter();
+
+  const { data: statusData, loading: statusLoading } = useQuery<{ status: PlatformStatus }>(GET_STATUS);
+  const { data: settingsData, loading: settingsLoading } = useQuery<{ platformSettings: PlatformSetting }>(PLATFORM_SETTINGS, {
+    skip: !statusData?.status?.domainInitialized
+  });
 
   const [setupDomain, { loading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
@@ -43,6 +51,30 @@ export default function SetupPage() {
       }
     },
   });
+
+  useEffect(() => {
+    if (statusData?.status?.domainInitialized && settingsData?.platformSettings?.fqdn) {
+      const { fqdn, sslEnabled: currentSslEnabled } = settingsData.platformSettings;
+      const protocol = currentSslEnabled ? 'https://' : 'http://';
+      
+      if (window.location.hostname === fqdn) {
+        router.push('/');
+      } else {
+        window.location.href = `${protocol}${fqdn}`;
+      }
+    }
+  }, [statusData, settingsData, router]);
+
+  if (statusLoading || (statusData?.status?.domainInitialized && settingsLoading)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-muted-foreground">Checking setup status...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
