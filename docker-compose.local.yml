@@ -1,7 +1,7 @@
 services:
   docker-control:
     build:
-      context: ./docker-control
+      context: ./apps/docker-control
       dockerfile: Dockerfile
     environment:
       DOCKER_CONTROL_PORT: ${DOCKER_CONTROL_PORT}
@@ -25,7 +25,7 @@ services:
 
   gateway-api:
     build:
-      context: ./gateway-api
+      context: ./apps/gateway-api
       dockerfile: Dockerfile
     depends_on:
       - postgres
@@ -46,7 +46,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/frontend
       dockerfile: Dockerfile
     depends_on:
       - gateway-api
