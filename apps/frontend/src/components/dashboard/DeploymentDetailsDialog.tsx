@@ -1,11 +1,13 @@
 import { useQuery } from '@apollo/client';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle 
+import { Button } from '@/components/ui/button';
+import { CodeEditor } from '@/components/ui/code-editor';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
 } from '@/components/ui/dialog';
 import { GET_DEPLOYMENT_STATUS, type Deployment, type DeploymentStatus } from '@/lib/graphql';
 
@@ -42,7 +44,7 @@ export function DeploymentDetailsDialog({
             ID: {deployment.id}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {detailStatusLoading ? (
             <div className="flex justify-center py-4">
@@ -62,7 +64,7 @@ export function DeploymentDetailsDialog({
                   <p className="text-sm text-muted-foreground break-words">{detailStatusData.deploymentStatus.message}</p>
                 </div>
               </div>
-              
+
               {detailStatusData.deploymentStatus.containers.length > 0 && (
                 <div>
                   <h4 className="font-medium mb-2">Containers</h4>
@@ -95,6 +97,33 @@ export function DeploymentDetailsDialog({
           ) : (
             <p className="text-muted-foreground">No status information available</p>
           )}
+        </div>
+
+        <div className="mt-6 space-y-2">
+          <h4 className="font-medium">Manifest YAML</h4>
+          <CodeEditor value={deployment.manifestYaml} height={300} language="yaml" readOnly />
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(deployment.manifestYaml)}>
+              Copy to Clipboard
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const blob = new Blob([deployment.manifestYaml], { type: 'text/yaml' });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = `${deployment.name}.yaml`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download YAML
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

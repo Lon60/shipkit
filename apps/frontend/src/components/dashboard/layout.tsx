@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { MobileHeader } from '@/components/dashboard/mobileHeader';
-import { CreateDeploymentForm } from '@/components/dashboard/createDeploymentForm';
+import { CreateDeploymentWizard } from '@/components/dashboard/createDeploymentWizard';
 import { LoadingPage } from '@/components/layout/LoadingSpinner';
 import {
   Dialog,
@@ -72,11 +72,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <DialogHeader>
             <DialogTitle>Create Deployment</DialogTitle>
             <DialogDescription>
-              Deploy your application using Docker Compose configuration
+              Deploy your application by providing Kubernetes manifest configuration
             </DialogDescription>
           </DialogHeader>
           
-          <CreateDeploymentForm onSuccess={handleDeploymentSuccess} />
+          <CreateDeploymentWizard onSuccess={handleDeploymentSuccess} />
         </DialogContent>
       </Dialog>
     </div>

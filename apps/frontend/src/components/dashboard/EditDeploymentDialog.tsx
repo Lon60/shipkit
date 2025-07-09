@@ -15,17 +15,7 @@ import { UPDATE_DEPLOYMENT, GET_DEPLOYMENTS, type Deployment } from '@/lib/graph
 
 const updateDeploymentSchema = z.object({
   name: z.string().min(1, 'Deployment name is required').min(3, 'Name must be at least 3 characters'),
-  composeYaml: z.string().min(1, 'Docker Compose YAML is required').refine(
-    (val) => {
-      try {
-        const lowerVal = val.toLowerCase();
-        return lowerVal.includes('services');
-      } catch {
-        return false;
-      }
-    },
-    { message: 'Invalid Docker Compose YAML format' }
-  ),
+  manifestYaml: z.string().min(1, 'Kubernetes Manifest YAML is required'),
 });
 
 type UpdateDeploymentFormData = z.infer<typeof updateDeploymentSchema>;
@@ -58,7 +48,7 @@ export function EditDeploymentDialog({ deployment, isOpen, onClose }: EditDeploy
     if (deployment) {
       reset({
         name: deployment.name,
-        composeYaml: deployment.composeYaml,
+        manifestYaml: deployment.manifestYaml,
       });
     }
   }, [deployment, reset]);
@@ -73,7 +63,7 @@ export function EditDeploymentDialog({ deployment, isOpen, onClose }: EditDeploy
           id: deployment.id,
           input: {
             name: data.name,
-            composeYaml: data.composeYaml
+            manifestYaml: data.manifestYaml
           }
         },
       });
@@ -118,9 +108,9 @@ export function EditDeploymentDialog({ deployment, isOpen, onClose }: EditDeploy
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="composeYaml" className="text-foreground">Docker Compose YAML</Label>
+              <Label htmlFor="manifestYaml" className="text-foreground">Kubernetes Manifest YAML</Label>
               <Controller
-                name="composeYaml"
+                name="manifestYaml"
                 control={control}
                 render={({ field }) => (
                   <CodeEditor
@@ -128,12 +118,12 @@ export function EditDeploymentDialog({ deployment, isOpen, onClose }: EditDeploy
                     onChange={(value) => field.onChange(value ?? '')}
                     height={300}
                     language="yaml"
-                    className={errors.composeYaml ? 'border-destructive' : ''}
+                    className={errors.manifestYaml ? 'border-destructive' : ''}
                   />
                 )}
               />
-              {errors.composeYaml && (
-                <p className="text-sm text-destructive">{errors.composeYaml.message}</p>
+              {errors.manifestYaml && (
+                <p className="text-sm text-destructive">{errors.manifestYaml.message}</p>
               )}
             </div>
 
