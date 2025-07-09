@@ -25,6 +25,7 @@ spec:
       labels:
         app: gateway-api
     spec:
+      serviceAccountName: gateway-api
       containers:
         - name: gateway-api
           image: gateway-api:dev
@@ -66,3 +67,33 @@ spec:
       services:
         - name: gateway-api
           port: 8080 
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gateway-api
+  namespace: shipkit-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gateway-api-ingress-manager
+  namespace: shipkit-system
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gateway-api-ingress-manager-binding
+  namespace: shipkit-system
+subjects:
+  - kind: ServiceAccount
+    name: gateway-api
+    namespace: shipkit-system
+roleRef:
+  kind: Role
+  name: gateway-api-ingress-manager
+  apiGroup: rbac.authorization.k8s.io 

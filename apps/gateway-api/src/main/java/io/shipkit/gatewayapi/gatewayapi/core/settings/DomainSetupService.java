@@ -1,14 +1,10 @@
 package io.shipkit.gatewayapi.gatewayapi.core.settings;
 
-import freemarker.template.Configuration;
-import freemarker.template.Template;
-import freemarker.template.TemplateException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -29,39 +25,20 @@ import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationExceptio
 @RequiredArgsConstructor
 public class DomainSetupService {
 
-    private static final String VHOST_TEMPLATE_NAME = "nginx_vhost.ftl";
-
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
     private final PlatformSettingRepository repository;
-    private final Configuration freemarkerConfig;
 
-    @Value("${nginx.vhost.output-dir:/nginx}")
-    private String nginxOutputDir;
-
-    @Value("${nginx.reload.container-name:nginx}")
-    private String nginxContainerName;
+    @Value("${kubernetes.namespace:shipkit-system}")
+    private String kubernetesNamespace;
 
     @Transactional
     public void configureDomain(String domain,
                                 boolean skipValidation,
                                 boolean sslEnabled,
                                 boolean forceSsl) {
-
-        Path    vhostPath            = Path.of(nginxOutputDir, domain + ".conf");
-        boolean vhostExistedBefore   = Files.exists(vhostPath);
-        String  previousVhostContent = null;
-
-        if (vhostExistedBefore) {
-            try {
-                previousVhostContent = Files.readString(vhostPath);
-            } catch (IOException ioe) {
-                log.warn("Could not read existing vhost content for rollback: {}", ioe.getMessage());
-                vhostExistedBefore = false;
-            }
-        }
 
         try {
             if (!skipValidation) {
@@ -77,12 +54,13 @@ public class DomainSetupService {
 
             // Certificate issuance now handled by Traefik – skip
 
-            writeVhostFile(domain, sslEnabled, forceSsl);
+            applyIngress(domain, sslEnabled, forceSsl);
 
             // Traefik picks up config automatically – no need to reload
 
         } catch (RuntimeException ex) {
-            rollbackVhostFile(vhostExistedBefore, vhostPath, previousVhostContent);
+            // Rollback logic for Traefik ingress if needed
+            rollbackIngress(domain);
             throw ex;
         }
     }
@@ -129,36 +107,76 @@ public class DomainSetupService {
         }
     }
 
-    private void writeVhostFile(String domain, boolean sslEnabled, boolean forceSsl) {
+    private void applyIngress(String domain, boolean sslEnabled, boolean forceSsl) {
         try {
-            Template template = freemarkerConfig.getTemplate(VHOST_TEMPLATE_NAME);
-            Map<String, Object> model = Map.of(
-                    "domain",     domain,
-                    "sslEnabled", sslEnabled,
-                    "forceSsl",   forceSsl
+            // Create or update a standard Kubernetes Ingress that Traefik watches
+            String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
+
+            io.kubernetes.client.openapi.ApiClient client = io.kubernetes.client.util.Config.defaultClient();
+            io.kubernetes.client.openapi.Configuration.setDefaultApiClient(client);
+
+            var networkingApi = new io.kubernetes.client.openapi.apis.NetworkingV1Api(client);
+
+            var metadata = new io.kubernetes.client.openapi.models.V1ObjectMeta()
+                    .name(ingressName)
+                    .namespace(kubernetesNamespace)
+                    .putAnnotationsItem("kubernetes.io/ingress.class", "traefik");
+
+            var paths = java.util.List.of(
+                    new io.kubernetes.client.openapi.models.V1HTTPIngressPath()
+                            .path("/api")
+                            .pathType("Prefix")
+                            .backend(new io.kubernetes.client.openapi.models.V1IngressBackend()
+                                    .service(new io.kubernetes.client.openapi.models.V1IngressServiceBackend()
+                                            .name("gateway-api")
+                                            .port(new io.kubernetes.client.openapi.models.V1ServiceBackendPort().number(8080))
+                                    )
+                            ),
+                    new io.kubernetes.client.openapi.models.V1HTTPIngressPath()
+                            .path("/")
+                            .pathType("Prefix")
+                            .backend(new io.kubernetes.client.openapi.models.V1IngressBackend()
+                                    .service(new io.kubernetes.client.openapi.models.V1IngressServiceBackend()
+                                            .name("shipkit-frontend")
+                                            .port(new io.kubernetes.client.openapi.models.V1ServiceBackendPort().number(3000))
+                                    )
+                            )
             );
 
-            String rendered = FreeMarkerTemplateUtils.processTemplateIntoString(template, model);
-            Path   outPath  = Path.of(nginxOutputDir, domain + ".conf");
+            var rule = new io.kubernetes.client.openapi.models.V1IngressRule()
+                    .host(domain)
+                    .http(new io.kubernetes.client.openapi.models.V1HTTPIngressRuleValue().paths(paths));
 
-            Files.createDirectories(outPath.getParent());
-            Files.writeString(outPath, rendered);
-            log.info("Wrote nginx vhost to {}", outPath);
+            var spec = new io.kubernetes.client.openapi.models.V1IngressSpec()
+                    .addRulesItem(rule)
+                    .ingressClassName("traefik");
 
-            Path   defaultConfPath = Path.of(nginxOutputDir, "default.conf");
-            String defaultContent  = """
-                    server {
-                        listen 80 default_server;
-                        server_name _;
-                        return 404;
-                    }
-                    """;
+            if (sslEnabled) {
+                spec.addTlsItem(new io.kubernetes.client.openapi.models.V1IngressTLS().addHostsItem(domain));
+            }
 
-            Files.writeString(defaultConfPath, defaultContent);
-            log.info("Replaced default nginx config at {}", defaultConfPath);
+            var ingress = new io.kubernetes.client.openapi.models.V1Ingress()
+                    .apiVersion("networking.k8s.io/v1")
+                    .kind("Ingress")
+                    .metadata(metadata)
+                    .spec(spec);
 
-        } catch (IOException | TemplateException e) {
-            throw new InternalServerException("Failed to write NGINX vhost file");
+            try {
+                networkingApi.readNamespacedIngress(ingressName, kubernetesNamespace, null);
+                // Exists → replace
+                networkingApi.replaceNamespacedIngress(ingressName, kubernetesNamespace, ingress, null, null, null, null);
+                log.info("Updated Ingress '{}' for domain {}", ingressName, domain);
+            } catch (io.kubernetes.client.openapi.ApiException ex) {
+                if (ex.getCode() == 404) {
+                    networkingApi.createNamespacedIngress(kubernetesNamespace, ingress, null, null, null, null);
+                    log.info("Created Ingress '{}' for domain {}", ingressName, domain);
+                } else {
+                    throw ex;
+                }
+            }
+
+        } catch (Exception e) {
+            throw new InternalServerException("Failed to configure Traefik Ingress: " + e.getMessage());
         }
     }
 
@@ -166,18 +184,20 @@ public class DomainSetupService {
         // Traefik reloads config dynamically – nothing to do
     }
 
-    private void rollbackVhostFile(boolean existedBefore,
-                                   Path vhostPath,
-                                   String previousContent) {
+    private void rollbackIngress(String domain) {
         try {
-            if (existedBefore) {
-                Files.writeString(vhostPath, previousContent);
-                log.info("Rolled back vhost file to previous version at {}", vhostPath);
-            } else {
-                Files.deleteIfExists(vhostPath);
-                log.info("Removed newly created vhost file at {} due to failure", vhostPath);
+            String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
+
+            io.kubernetes.client.openapi.ApiClient client = io.kubernetes.client.util.Config.defaultClient();
+            var networkingApi = new io.kubernetes.client.openapi.apis.NetworkingV1Api(client);
+            try {
+                networkingApi.deleteNamespacedIngress(ingressName, kubernetesNamespace, null, null, null, null, null, null);
+                log.info("Rolled back Ingress '{}' due to failure", ingressName);
+            } catch (io.kubernetes.client.openapi.ApiException ex) {
+                if (ex.getCode() != 404) {
+                    log.warn("Rollback ingress deletion failed: {}", ex.getMessage());
+                }
             }
-            reloadNginx();
         } catch (Exception e) {
             log.warn("Rollback failed: {}", e.getMessage());
         }
