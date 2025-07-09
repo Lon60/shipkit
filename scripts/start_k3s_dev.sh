@@ -20,6 +20,28 @@ CLUSTER_NAME=${CLUSTER_NAME:-shipkit}
 K3D_VERSION="v5.6.0"
 K8S_VERSION="v1.27.3"
 
+## Parse CLI flags
+FORCE_BUILD=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -b|--build)
+      IFS=',' read -ra FORCE_BUILD <<< "$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1" >&2; exit 1;;
+  esac
+done
+
+# Helper to decide rebuild
+should_rebuild() {
+  local img="$1"
+  for i in "${FORCE_BUILD[@]}"; do
+    if [[ "$i" == "$img" ]]; then return 0; fi
+  done
+  return 1
+}
+
 # -------------------------------------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------------------------------------
@@ -78,23 +100,83 @@ echo "[i] KUBECONFIG written to ${KUBECONFIG_FILE} and exported for this shell s
 
 AUTO_DEPLOY=${AUTO_DEPLOY:-true}
 
-# -------------------------------------------------------------------------------------------------
-# Import local images if present
-# -------------------------------------------------------------------------------------------------
-if docker image inspect k3s-control:dev >/dev/null 2>&1; then
-  echo "[+] Importing local k3s-control:dev image into cluster"
-  k3d image import -c "${CLUSTER_NAME}" k3s-control:dev || true
+# ---------------------------------------------------------------------------------------------
+# Build dev images if missing
+# ---------------------------------------------------------------------------------------------
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+build_gateway() {
+  echo "[+] Building gateway-api:dev image via Gradle ..."
+  (cd "$PROJECT_ROOT/apps/gateway-api" && ./gradlew bootBuildImage --imageName=gateway-api:dev)
+}
+
+build_frontend() {
+  echo "[+] Building frontend:dev image via docker ..."
+  (cd "$PROJECT_ROOT/apps/frontend" && docker build -f Dockerfile -t frontend:dev .)
+}
+
+if should_rebuild gateway-api; then
+  build_gateway
+elif ! docker image inspect gateway-api:dev >/dev/null 2>&1; then
+  build_gateway
+fi
+
+if should_rebuild frontend; then
+  build_frontend
+elif ! docker image inspect frontend:dev >/dev/null 2>&1; then
+  build_frontend
 fi
 
 # -------------------------------------------------------------------------------------------------
-# Optional: deploy Traefik and k3s-control dev manifests
+# Import images into cluster
 # -------------------------------------------------------------------------------------------------
-if [ "${AUTO_DEPLOY}" = "true" ]; then
-  echo "[+] Applying Traefik and k3s-control manifests"
-  kubectl apply -f k8s/bootstrap/traefik.yaml
-  kubectl apply -f k8s/dev/k3s-control.yaml
-  echo "[i] Manifests applied. Check status with: kubectl -n shipkit-system get pods,svc"
+for IMG in gateway-api:dev frontend:dev; do
+  if docker image inspect "$IMG" >/dev/null 2>&1; then
+    echo "[+] Importing $IMG into k3d cluster"
+    k3d image import -c "${CLUSTER_NAME}" "$IMG" || true
+  fi
+done
+
+# -------------------------------------------------------------------------------------------------
+# Deploy full Shipkit stack (Postgres, Gateway, Frontend)
+# -------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------
+# Install Traefik via Helm (includes CRDs)
+# -------------------------------------------------------------
+
+# Ensure helm present
+if ! command -v helm >/dev/null 2>&1; then
+  echo "[+] Installing Helm (v3) ..."
+  curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 fi
+
+# Add repo (idempotent)
+helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true
+helm repo update traefik >/dev/null 2>&1
+
+echo "[+] Installing Traefik via Helm chart"
+helm upgrade --install traefik traefik/traefik \
+  --namespace traefik --create-namespace \
+  --set service.type=LoadBalancer \
+  --set ports.web.port=80 \
+  --set ports.websecure.port=443 \
+  --set installCRDs=true \
+  --set ingressRoute.dashboard.enabled=false \
+  --wait
+
+# Wait for IngressRoute CRD
+echo -n "[i] Waiting for Traefik CRDs to register"
+until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do
+  echo -n "."; sleep 2;
+done
+echo " ✔"
+
+echo "[+] Applying dev manifests for Postgres, Gateway-API and Frontend"
+kubectl apply -f "$PROJECT_ROOT/k8s/dev/postgres.yaml"
+kubectl apply -f "$PROJECT_ROOT/k8s/dev/gateway-api.yaml"
+kubectl apply -f "$PROJECT_ROOT/k8s/dev/frontend.yaml"
+
+echo "[✓] Shipkit dev stack is now running. Access UI at: http://localhost"
 
 # -------------------------------------------------------------------------------------------------
 # Final instructions
