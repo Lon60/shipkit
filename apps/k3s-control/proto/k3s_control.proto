@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package k3s_control;
+
+option go_package = "github.com/shipkit/k3s-control/proto";
+
+service K3sControlService {
+  rpc ApplyDeployment (ApplyRequest) returns (ActionResult);
+  rpc DeleteDeployment (DeleteRequest) returns (ActionResult);
+  rpc GetStatus (StatusRequest)       returns (AppStatus);
+}
+
+message ApplyRequest {
+  string uuid = 1;
+  string manifest_yaml = 2;
+}
+
+message DeleteRequest {
+  string uuid = 1;
+}
+
+message StatusRequest {
+  string uuid = 1;
+}
+
+message ActionResult {
+  int32 status = 1;   // 0 = OK
+  string message = 2;
+  string details = 3;
+}
+
+message AppStatus {
+  string uuid = 1;
+  AppState state = 2;
+  repeated ContainerStatus containers = 3;
+  string message = 4;
+  int32 status = 5;
+}
+
+enum AppState {
+  UNKNOWN = 0;
+  RUNNING = 1;
+  STOPPED = 2;
+  STARTING = 3;
+  STOPPING = 4;
+  ERROR = 5;
+}
+
+message ContainerStatus {
+  string name = 1;
+  string state = 2; // running, crashed, etc.
+  string readiness = 3;
+  repeated string ports = 4; // 8080/TCP, 7777/UDP
+} 
