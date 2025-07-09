@@ -34,17 +34,17 @@ echo "Updating versions to $NEW_VERSION…"
 
 echo "$NEW_VERSION" > VERSION
 
-echo "$NEW_VERSION" > apps/docker-control/VERSION
-
 sed -i -E "s/\"version\"[[:space:]]*:[[:space:]]*\"[^\"]+\"/\"version\": \"$NEW_VERSION\"/" apps/frontend/package.json
 
 sed -i -E "s/^version[[:space:]]*=.*/version = '$NEW_VERSION'/" apps/gateway-api/build.gradle
 
-echo "Files updated: VERSION, apps/docker-control/VERSION, apps/frontend/package.json, apps/gateway-api/build.gradle"
+echo "$NEW_VERSION" > apps/k3s-control/VERSION
+
+echo "Files updated: VERSION, apps/k3s-control/VERSION, apps/frontend/package.json, apps/gateway-api/build.gradle"
 
 read -rp "Commit changes now? [y/N]: " COMMIT
 if [[ $COMMIT =~ ^[Yy]$ ]]; then
-  git add VERSION apps/docker-control/VERSION apps/frontend/package.json apps/gateway-api/build.gradle
+  git add VERSION apps/k3s-control/VERSION apps/frontend/package.json apps/gateway-api/build.gradle
   git commit -m "chore: bump version to $NEW_VERSION"
   echo "Commit created."
 else
