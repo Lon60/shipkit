@@ -33,19 +33,4 @@ spec:
             - configMapRef:
                 name: shipkit-env
           ports:
-            - containerPort: 3000
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: shipkit-frontend
-  namespace: shipkit-system
-spec:
-  entryPoints:
-    - web
-  routes:
-    - match: Host(`localhost`) && PathPrefix(`/`)
-      kind: Rule
-      services:
-        - name: shipkit-frontend
-          port: 3000 
+            - containerPort: 3000 
