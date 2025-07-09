@@ -1,6 +1,9 @@
 package io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto;
 
+import java.util.List;
+
 public record UpdateDeploymentDTO(
         String name,
-        String composeYaml
+        String composeYaml,
+        List<ServiceDefinitionDTO> services
 ) {} 
