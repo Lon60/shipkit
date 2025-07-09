@@ -1,24 +1,24 @@
 type Deployment {
     id: ID!
     name: String!
-    composeYaml: String!
+    manifestYaml: String!
     createdAt: String!
 }
 
 input CreateDeploymentDTO {
     name: String!
-    composeYaml: String!
+    manifestYaml: String!
 }
 
 input UpdateDeploymentDTO {
     name: String
-    composeYaml: String
+    manifestYaml: String
 }
 
 type ContainerStatus {
     name: String!
     state: String!
-    health: String
+    readiness: String
     ports: [String!]!
 }
 

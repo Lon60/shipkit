@@ -2,28 +2,25 @@ package io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppStatus;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sActionResult;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppStatus;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+// Always enabled since Shipkit now runs exclusively on K3s
 import org.springframework.stereotype.Component;
 
-// Temporarily stub out gRPC generated code until proto integration
-class DummyStub {
-    K3sActionResult applyDeployment(String u, String yaml) { return K3sActionResult.builder().status(0).message("ok").build(); }
-    K3sActionResult deleteDeployment(String u) { return K3sActionResult.builder().status(0).message("ok").build(); }
-    K3sAppStatus getStatus(String u) { return K3sAppStatus.builder().uuid(u).status(0).message("ok").build(); }
-}
+import k3s_control.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "shipkit.runtime", havingValue = "k8s")
 public class K3sControlGrpcClient {
 
     private final ManagedChannel channel;
-    private final DummyStub stub;
+    private final K3sControlServiceGrpc.K3sControlServiceBlockingStub blockingStub;
 
     public K3sControlGrpcClient(
             @Value("${k3s-control.host:localhost}") String host,
@@ -31,24 +28,66 @@ public class K3sControlGrpcClient {
         this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
                 .build();
-        this.stub = new DummyStub();
+        this.blockingStub = K3sControlServiceGrpc.newBlockingStub(channel);
         log.info("K3sControlGrpcClient connected to {}:{}", host, port);
     }
 
     public K3sActionResult applyDeployment(String uuid, String manifestYaml) {
-        return stub.applyDeployment(uuid, manifestYaml);
+        ApplyRequest req = ApplyRequest.newBuilder()
+                .setUuid(uuid)
+                .setManifestYaml(manifestYaml)
+                .build();
+        ActionResult res = blockingStub.applyDeployment(req);
+        return toActionResult(res);
     }
 
     public K3sActionResult deleteDeployment(String uuid) {
-        return stub.deleteDeployment(uuid);
+        DeleteRequest req = DeleteRequest.newBuilder()
+                .setUuid(uuid)
+                .build();
+        ActionResult res = blockingStub.deleteDeployment(req);
+        return toActionResult(res);
     }
 
     public K3sAppStatus getStatus(String uuid) {
-        return stub.getStatus(uuid);
+        StatusRequest req = StatusRequest.newBuilder()
+                .setUuid(uuid)
+                .build();
+        AppStatus res = blockingStub.getStatus(req);
+        return toAppStatus(res);
+    }
+
+    private K3sActionResult toActionResult(ActionResult res) {
+        return K3sActionResult.builder()
+                .status(res.getStatus())
+                .message(res.getMessage())
+                .details(res.getDetails())
+                .build();
+    }
+
+    private K3sAppStatus toAppStatus(AppStatus res) {
+        List<K3sAppStatus.ContainerStatus> containers = res.getContainersList().stream()
+                .map(c -> K3sAppStatus.ContainerStatus.builder()
+                        .name(c.getName())
+                        .state(c.getState())
+                        .readiness(c.getReadiness())
+                        .ports(c.getPortsList())
+                        .build())
+                .collect(Collectors.toList());
+
+        return K3sAppStatus.builder()
+                .uuid(res.getUuid())
+                .status(res.getStatus())
+                .message(res.getMessage())
+                .state(res.getState().name())
+                .containers(containers)
+                .build();
     }
 
     @PreDestroy
     public void shutdown() {
-        channel.shutdownNow();
+        if (channel != null && !channel.isShutdown()) {
+            channel.shutdownNow();
+        }
     }
 } 

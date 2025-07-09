@@ -20,7 +20,7 @@ public class Deployment {
 
     @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
-    private String composeYaml;
+    private String manifestYaml;
 
     @Column(nullable = false)
     private String name;
@@ -28,10 +28,10 @@ public class Deployment {
     @Column(nullable = false)
     private Instant createdAt;
 
-    public static Deployment create(String name, String composeYaml) {
+    public static Deployment create(String name, String manifestYaml) {
         return Deployment.builder()
                 .name(name)
-                .composeYaml(composeYaml)
+                .manifestYaml(manifestYaml)
                 .createdAt(Instant.now())
                 .build();
     }

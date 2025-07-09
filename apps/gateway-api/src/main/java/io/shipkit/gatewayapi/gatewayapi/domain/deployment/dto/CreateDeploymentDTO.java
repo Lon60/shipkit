@@ -5,6 +5,6 @@ import java.util.List;
 
 public record CreateDeploymentDTO(
         @NotBlank String name,
-        @NotBlank String composeYaml,
+        @NotBlank String manifestYaml,
         List<ServiceDefinitionDTO> services
 ) {} 

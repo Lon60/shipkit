@@ -3,7 +3,6 @@ package io.shipkit.gatewayapi.gatewayapi.core.settings;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
-import io.shipkit.gatewayapi.gatewayapi.domain.deployment.DockerControlGrpcClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,10 +21,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 
-import docker_control.ActionResult;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.InternalServerException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException;
-import io.shipkit.gatewayapi.gatewayapi.core.exceptions.CertificateIssuanceException;
 
 @Slf4j
 @Service
@@ -39,7 +36,6 @@ public class DomainSetupService {
             .build();
 
     private final PlatformSettingRepository repository;
-    private final DockerControlGrpcClient dockerClient;
     private final Configuration freemarkerConfig;
 
     @Value("${nginx.vhost.output-dir:/nginx}")
@@ -79,12 +75,11 @@ public class DomainSetupService {
             entity.setForceSsl(forceSsl);
             repository.save(entity);
 
-            if (sslEnabled) {
-                issueCertificate(domain);
-            }
+            // Certificate issuance now handled by Traefik – skip
 
             writeVhostFile(domain, sslEnabled, forceSsl);
-            reloadNginx();
+
+            // Traefik picks up config automatically – no need to reload
 
         } catch (RuntimeException ex) {
             rollbackVhostFile(vhostExistedBefore, vhostPath, previousVhostContent);
@@ -93,11 +88,7 @@ public class DomainSetupService {
     }
 
     private void issueCertificate(String domain) {
-        ActionResult result = dockerClient.issueCertificate(domain);
-        if (result.getStatus() != 0) {
-            throw new CertificateIssuanceException(
-                    "Failed to issue certificate for " + domain + ": " + result.getMessage());
-        }
+        // Traefik ACME will issue certificates automatically – nothing to do here
     }
 
     private void validateDomain(String domain) {
@@ -172,10 +163,7 @@ public class DomainSetupService {
     }
 
     private void reloadNginx() {
-        ActionResult result = dockerClient.reloadNginx(nginxContainerName);
-        if (result.getStatus() != 0) {
-            throw new InternalServerException("Failed to reload NGINX: " + result.getMessage());
-        }
+        // Traefik reloads config dynamically – nothing to do
     }
 
     private void rollbackVhostFile(boolean existedBefore,
