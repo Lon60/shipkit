@@ -30,8 +30,10 @@ spec:
           image: frontend:dev
           imagePullPolicy: IfNotPresent
           env:
-            - name: NEXT_PUBLIC_GRAPHQL_ENDPOINT
-              value: http://localhost/graphql
+            - name: API_BASE_URL
+              value: /api
+            - name: NEXT_PUBLIC_APP_NAME
+              value: Shipkit
           ports:
             - containerPort: 3000
 ---

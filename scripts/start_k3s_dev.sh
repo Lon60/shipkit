@@ -25,8 +25,14 @@ FORCE_BUILD=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -b|--build)
-      IFS=',' read -ra FORCE_BUILD <<< "$2"
-      shift 2
+      shift
+      while [[ $# -gt 0 && $1 != -* ]]; do
+        IFS=',' read -ra PARTS <<< "$1"
+        for p in "${PARTS[@]}"; do
+          FORCE_BUILD+=("$p")
+        done
+        shift
+      done
       ;;
     *)
       echo "Unknown option: $1" >&2; exit 1;;
