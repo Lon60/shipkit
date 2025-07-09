@@ -1,7 +1,4 @@
-//go:build ignore
-// +build ignore
-
-// Temporary skeleton for k3s-control gRPC server. Will be compiled once protobuf generation is in place.
+// Temporary skeleton for k3s-control gRPC server. Build with `make build`.
 
 package main
 
