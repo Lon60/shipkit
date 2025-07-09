@@ -8,7 +8,7 @@ import (
 )
 
 func TestStubService(t *testing.T) {
-	svc := New()
+	svc := &Service{noop: true}
 	ctx := context.Background()
 
 	applyRes, err := svc.ApplyDeployment(ctx, &pb.ApplyRequest{Uuid: "123", ManifestYaml: "apiVersion: v1"})
