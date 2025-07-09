@@ -76,9 +76,26 @@ export KUBECONFIG="${KUBECONFIG_FILE}"
 
 echo "[i] KUBECONFIG written to ${KUBECONFIG_FILE} and exported for this shell session."
 
-echo "\nNext steps:"
-echo "1. Verify cluster is up: kubectl get nodes -o wide"
-echo "2. Deploy Traefik & Shipkit components – for now you can run:"
-echo "     kubectl apply -f k8s/bootstrap/ (manifests to be added)"
-echo "3. Access Shipkit UI on http://localhost (ports 80/443 are forwarded)."
-echo "\nTo destroy the cluster run: k3d cluster delete ${CLUSTER_NAME}" 
+AUTO_DEPLOY=${AUTO_DEPLOY:-true}
+
+# -------------------------------------------------------------------------------------------------
+# Import local images if present
+# -------------------------------------------------------------------------------------------------
+if docker image inspect k3s-control:dev >/dev/null 2>&1; then
+  echo "[+] Importing local k3s-control:dev image into cluster"
+  k3d image import -c "${CLUSTER_NAME}" k3s-control:dev || true
+fi
+
+# -------------------------------------------------------------------------------------------------
+# Optional: deploy Traefik and k3s-control dev manifests
+# -------------------------------------------------------------------------------------------------
+if [ "${AUTO_DEPLOY}" = "true" ]; then
+  echo "[+] Applying Traefik and k3s-control manifests"
+  kubectl apply -f k8s/bootstrap/traefik.yaml
+  kubectl apply -f k8s/dev/k3s-control.yaml
+  echo "[i] Manifests applied. Check status with: kubectl -n shipkit-system get pods,svc"
+fi
+
+# -------------------------------------------------------------------------------------------------
+# Final instructions
+# ------------------------------------------------------------------------------------------------- 

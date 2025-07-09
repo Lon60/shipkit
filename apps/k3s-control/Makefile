@@ -27,3 +27,9 @@ clean:
 test:
 	go mod tidy
 	go test ./... 
+
+## docker-build: Build container image
+.PHONY: docker-build
+
+docker-build:
+	docker build -t k3s-control:dev . 
