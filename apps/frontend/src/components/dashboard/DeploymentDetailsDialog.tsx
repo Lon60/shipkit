@@ -2,12 +2,12 @@ import { useQuery } from '@apollo/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CodeEditor } from '@/components/ui/code-editor';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle 
 } from '@/components/ui/dialog';
 import { GET_DEPLOYMENT_STATUS, type Deployment, type DeploymentStatus } from '@/lib/graphql';
 
@@ -44,7 +44,7 @@ export function DeploymentDetailsDialog({
             ID: {deployment.id}
           </DialogDescription>
         </DialogHeader>
-
+        
         <div className="space-y-4">
           {detailStatusLoading ? (
             <div className="flex justify-center py-4">
@@ -64,7 +64,7 @@ export function DeploymentDetailsDialog({
                   <p className="text-sm text-muted-foreground break-words">{detailStatusData.deploymentStatus.message}</p>
                 </div>
               </div>
-
+              
               {detailStatusData.deploymentStatus.containers.length > 0 && (
                 <div>
                   <h4 className="font-medium mb-2">Containers</h4>

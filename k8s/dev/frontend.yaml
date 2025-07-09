@@ -29,11 +29,9 @@ spec:
         - name: frontend
           image: frontend:dev
           imagePullPolicy: IfNotPresent
-          env:
-            - name: API_BASE_URL
-              value: /api
-            - name: NEXT_PUBLIC_APP_NAME
-              value: Shipkit
+          envFrom:
+            - configMapRef:
+                name: shipkit-env
           ports:
             - containerPort: 3000
 ---

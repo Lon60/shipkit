@@ -29,21 +29,10 @@ spec:
         - name: gateway-api
           image: gateway-api:dev
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: shipkit-env
           env:
-            - name: DATABASE_URL
-              value: jdbc:postgresql://postgres.shipkit-system.svc.cluster.local:5432/shipkit
-            - name: DATABASE_USERNAME
-              value: postgres
-            - name: DATABASE_PASSWORD
-              value: postgres
-
-            - name: JWT_SECRET
-              value: change_me
-            - name: JWT_EXPIRATION_MS
-              value: "3600000"
-            - name: CORS_ALLOWED_ORIGINS
-              value: http://localhost:3000
-
             - name: K3S_CONTROL_HOST
               value: k3s-control.shipkit-system.svc.cluster.local
             - name: K3S_CONTROL_PORT

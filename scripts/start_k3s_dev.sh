@@ -178,6 +178,16 @@ done
 echo " ✔"
 
 echo "[+] Applying dev manifests for Postgres, Gateway-API and Frontend"
+# Create / update a ConfigMap with environment variables from .env (if present)
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  echo "[+] Creating/updating 'shipkit-env' ConfigMap from .env file"
+  # Ensure target namespace exists (created by postgres manifest, but create first for idempotency)
+  kubectl create namespace shipkit-system --dry-run=client -o yaml | kubectl apply -f -
+  kubectl -n shipkit-system delete configmap shipkit-env 2>/dev/null || true
+  kubectl -n shipkit-system create configmap shipkit-env --from-env-file="$PROJECT_ROOT/.env"
+else
+  echo "[!] No .env file found at $PROJECT_ROOT/.env – skipping ConfigMap creation"
+fi
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/postgres.yaml"
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/gateway-api.yaml"
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/frontend.yaml"
