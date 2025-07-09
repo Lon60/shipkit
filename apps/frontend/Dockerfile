@@ -11,7 +11,6 @@ RUN SKIP_ENV_VALIDATION=1 bun run build
 
 FROM oven/bun:1-alpine AS runner
 WORKDIR /app
-# production environment
 ENV NODE_ENV=production
 
 COPY --from=builder /app/.next/standalone ./
