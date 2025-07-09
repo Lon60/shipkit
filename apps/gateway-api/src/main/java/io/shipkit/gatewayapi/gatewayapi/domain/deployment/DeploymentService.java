@@ -178,4 +178,27 @@ public class DeploymentService {
         }
         return deployment;
     }
+
+    @Transactional(readOnly = true)
+    public String previewDeployment(CreateDeploymentDTO dto) {
+        Deployment dummy = Deployment.builder()
+                .id(UUID.randomUUID())
+                .name(dto.name())
+                .createdAt(Instant.now())
+                .build();
+
+        List<DeploymentServiceDefinition> defs = dto.services() == null ? List.of() : dto.services().stream()
+                .map(s -> DeploymentServiceDefinition.builder()
+                        .deployment(dummy)
+                        .serviceName(s.serviceName())
+                        .image(s.image())
+                        .internalPort(s.internalPort())
+                        .subDomain(s.subDomain())
+                        .expose(Boolean.TRUE.equals(s.expose()))
+                        .sslEnabled(Boolean.TRUE.equals(s.sslEnabled()))
+                        .build())
+                .toList();
+
+        return manifestBuilder.build(dummy, defs);
+    }
 } 

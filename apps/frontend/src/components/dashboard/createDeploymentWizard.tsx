@@ -13,6 +13,7 @@ import { CodeEditor } from '@/components/ui/code-editor';
 import {
   CREATE_DEPLOYMENT,
   GET_DEPLOYMENTS,
+  PREVIEW_DEPLOYMENT,
   type Deployment,
 } from '@/lib/graphql';
 
@@ -74,6 +75,8 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
+  const [previewDeployment] = useMutation<{ previewDeployment: string }>(PREVIEW_DEPLOYMENT);
+
   const nextStep = () => setStep((prev) => (prev < 3 ? ((prev + 1) as Step) : prev));
   const prevStep = () => setStep((prev) => (prev > 1 ? ((prev - 1) as Step) : prev));
 
@@ -125,11 +128,15 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
     }
   };
 
-  const generatePreview = () => {
-    // Temporary client-side YAML generation (replace with preview mutation when backend ready)
+  const generatePreview = async () => {
     const data = watch();
-    const yaml = `# Manifest preview for ${data.name}\n# services: ${data.services.length}`;
-    setPreviewYaml(yaml);
+    try {
+      const res = await previewDeployment({ variables: { input: { ...data, manifestYaml: '' } } });
+      setPreviewYaml(res.data?.previewDeployment ?? '');
+    } catch (e) {
+      toast.error('Preview failed');
+      console.error(e);
+    }
   };
 
   return (
