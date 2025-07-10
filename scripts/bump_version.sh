@@ -25,8 +25,13 @@ IFS='.' read -r MAJOR_NEW MINOR_NEW PATCH_NEW <<< "$NUM_NEW"
 
 if (( MAJOR_NEW < MAJOR_CUR )) ||
    { (( MAJOR_NEW == MAJOR_CUR )) && (( MINOR_NEW < MINOR_CUR )); } ||
-   { (( MAJOR_NEW == MAJOR_CUR )) && (( MINOR_NEW == MINOR_CUR )) && (( PATCH_NEW <= PATCH_CUR )); }; then
+   { (( MAJOR_NEW == MAJOR_CUR )) && (( MINOR_NEW == MINOR_CUR )) && (( PATCH_NEW < PATCH_CUR )); }; then
   echo "New version ($NEW_VERSION) must be greater than current version ($CURRENT_VERSION)" >&2
+  exit 1
+fi
+
+if [[ "$NEW_VERSION" == "$CURRENT_VERSION" ]]; then
+  echo "Version $NEW_VERSION is the same as current version." >&2
   exit 1
 fi
 

@@ -49,12 +49,13 @@ if [[ "${SKIP_K3S:-0}" != "1" ]]; then
   if ! command -v kubectl >/dev/null 2>&1; then
     INFO "Installing single-node K3s …"
     curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
-    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   else
     INFO "kubectl present – assuming an existing cluster; skipping K3s install."
   fi
-else
-  WARN "SKIP_K3S=1 → assuming an existing cluster."
+fi
+
+if [[ -f /etc/rancher/k3s/k3s.yaml ]]; then
+  export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 fi
 
 # ------------------------------------------------------------
@@ -72,7 +73,29 @@ if ! command -v helm >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------
-# 3. Traefik Ingress controller
+# 3. Generate .env and ConfigMap
+# ------------------------------------------------------------
+
+SHIPKIT_HOME="$HOME/shipkit"
+mkdir -p "$SHIPKIT_HOME"
+ENV_FILE="$SHIPKIT_HOME/.env"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  INFO "Generating .env file at $ENV_FILE"
+  curl -sSL "https://raw.githubusercontent.com/Lon60/shipkit/refs/heads/main/.env.example" -o "$ENV_FILE"
+  JWT=$(openssl rand -hex 32 || head -c 32 /dev/urandom | xxd -p)
+  sed -i -E "s/^JWT_SECRET=.*/JWT_SECRET=$JWT/" "$ENV_FILE"
+fi
+
+# Ensure namespace exists before creating ConfigMap
+kubectl create namespace shipkit-system --dry-run=client -o yaml | kubectl apply -f -
+
+# Create or update ConfigMap from .env
+kubectl -n shipkit-system create configmap shipkit-env --from-env-file="$ENV_FILE" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# ------------------------------------------------------------
+# 4. Traefik Ingress controller
 # ------------------------------------------------------------
 helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true
 helm repo update traefik >/dev/null 2>&1
@@ -85,14 +108,16 @@ helm upgrade --install traefik traefik/traefik \
   --wait
 
 # ------------------------------------------------------------
-# 4. Deploy Shipkit workload (latest main branch)
+# 5. Deploy Shipkit workload (latest main branch)
 # ------------------------------------------------------------
 INFO "Deploying Shipkit workloads (namespace: shipkit-system)"
 REMOTE="github.com/lon60/shipkit//k8s/base?ref=main"
 
+
 kubectl apply -k "$REMOTE"
 
+# Ensure pods pull latest images
 INFO "Rolling Deployments to ensure newest images are used"
-kubectl -n shipkit-system rollout restart deployment gateway-api shipkit-frontend k3s-control || true
+kubectl -n shipkit-system rollout restart deployment gateway-api shipkit-frontend k3s-control postgres || true
 
 INFO "Shipkit installation complete! Run:\n  kubectl -n shipkit-system get pods,svc" 
