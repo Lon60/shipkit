@@ -48,13 +48,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         List<String> permitAllPaths = new ArrayList<>(Arrays.asList(
-                "/graphql",
+                "/api/graphql",
                 "/actuator/**"
         ));
 
         if (Arrays.asList(environment.getActiveProfiles()).contains("dev") || 
             Arrays.asList(environment.getActiveProfiles()).contains("development")) {
-            permitAllPaths.add("/graphiql/**");
+            permitAllPaths.add("/api/graphiql/**");
             permitAllPaths.add("/playground/**");
         }
 

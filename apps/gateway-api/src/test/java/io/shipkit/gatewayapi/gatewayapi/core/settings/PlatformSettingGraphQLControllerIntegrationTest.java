@@ -33,7 +33,7 @@ class PlatformSettingGraphQLControllerIntegrationTest {
         repository.deleteAll();
         WebTestClient client = MockMvcWebTestClient
                 .bindTo(mockMvc)
-                .baseUrl("/graphql")
+                .baseUrl("/api/graphql")
                 .build();
         graphQlTester = HttpGraphQlTester.create(client);
     }

@@ -1,24 +1,32 @@
 type Deployment {
     id: ID!
     name: String!
-    composeYaml: String!
+    manifestYaml: String!
     createdAt: String!
+}
+
+input ServiceDefinitionDTO {
+    serviceName: String!
+    image: String!
+    internalPort: Int
+    subDomain: String
+    sslEnabled: Boolean!
 }
 
 input CreateDeploymentDTO {
     name: String!
-    composeYaml: String!
+    services: [ServiceDefinitionDTO!]
 }
 
 input UpdateDeploymentDTO {
     name: String
-    composeYaml: String
+    services: [ServiceDefinitionDTO!]
 }
 
 type ContainerStatus {
     name: String!
     state: String!
-    health: String
+    readiness: String
     ports: [String!]!
 }
 

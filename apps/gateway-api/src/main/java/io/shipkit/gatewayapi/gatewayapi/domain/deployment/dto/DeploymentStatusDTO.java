@@ -1,7 +1,7 @@
 package io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto;
 
-import docker_control.AppStatus;
-import docker_control.ContainerStatus;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppStatus;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppStatus.ContainerStatus;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,13 +12,13 @@ public record DeploymentStatusDTO(String uuid,
                                   int status,
                                   List<ContainerStatusDTO> containers) {
 
-    public static DeploymentStatusDTO from(AppStatus appStatus) {
-        List<ContainerStatusDTO> containers = appStatus.getContainersList().stream()
+    public static DeploymentStatusDTO from(K3sAppStatus appStatus) {
+        List<ContainerStatusDTO> containers = appStatus.getContainers().stream()
                 .map(DeploymentStatusDTO::mapContainer)
                 .collect(Collectors.toList());
         return new DeploymentStatusDTO(
                 appStatus.getUuid(),
-                appStatus.getState().name(),
+                appStatus.getState(),
                 appStatus.getMessage(),
                 appStatus.getStatus(),
                 containers);
@@ -28,7 +28,7 @@ public record DeploymentStatusDTO(String uuid,
         return new ContainerStatusDTO(
                 cs.getName(),
                 cs.getState(),
-                cs.getHealth(),
-                cs.getPortsList());
+                cs.getReadiness(),
+                cs.getPorts());
     }
 } 

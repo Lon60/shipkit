@@ -206,22 +206,4 @@ public class GlobalExceptionHandler {
                 .path(env.getExecutionStepInfo().getPath())
                 .build();
     }
-
-    @GraphQlExceptionHandler(CertificateIssuanceException.class)
-    public GraphQLError handleCertificateIssuance(
-            CertificateIssuanceException ex,
-            DataFetchingEnvironment env,
-            GraphqlErrorBuilder<?> builder) {
-        ErrorObject error = new ErrorObject();
-        error.setStatusCode(HttpStatus.BAD_REQUEST.value());
-        error.setMessage(ex.getMessage());
-        error.setTimestamp(new Date());
-        error.setCode(ErrorCode.CERTIFICATE_ISSUANCE_ERROR);
-        return builder
-                .message(error.getMessage())
-                .errorType(ErrorType.BAD_REQUEST)
-                .extensions(Map.of(ERROR_KEY, error))
-                .path(env.getExecutionStepInfo().getPath())
-                .build();
-    }
 }

@@ -1,5 +1,7 @@
 import { useQuery } from '@apollo/client';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CodeEditor } from '@/components/ui/code-editor';
 import { 
   Dialog, 
   DialogContent, 
@@ -74,7 +76,7 @@ export function DeploymentDetailsDialog({
                             <p className="font-medium">{container.name}</p>
                             <div className="flex flex-col sm:flex-row sm:space-x-4 mt-1 gap-1 sm:gap-0">
                               <span className="text-sm">State: {container.state}</span>
-                              <span className="text-sm">Health: {container.health}</span>
+                              <span className="text-sm">Readiness: {container.readiness}</span>
                             </div>
                           </div>
                           {container.ports.length > 0 && (
@@ -95,6 +97,33 @@ export function DeploymentDetailsDialog({
           ) : (
             <p className="text-muted-foreground">No status information available</p>
           )}
+        </div>
+
+        <div className="mt-6 space-y-2">
+          <h4 className="font-medium">Manifest YAML</h4>
+          <CodeEditor value={deployment.manifestYaml} height={300} language="yaml" readOnly />
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(deployment.manifestYaml)}>
+              Copy to Clipboard
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const blob = new Blob([deployment.manifestYaml], { type: 'text/yaml' });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = `${deployment.name}.yaml`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download YAML
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

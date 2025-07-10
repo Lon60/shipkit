@@ -2,6 +2,6 @@ mutation updateDeployment($id: ID!, $input: UpdateDeploymentDTO!) {
     updateDeployment(id: $id, input: $input) {
         id
         name
-        composeYaml
+        manifestYaml
     }
 } 

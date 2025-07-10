@@ -31,7 +31,7 @@ export const GET_DEPLOYMENTS = gql`
     deployments {
       id
       name
-      composeYaml
+      manifestYaml
       createdAt
     }
   }
@@ -47,7 +47,7 @@ export const GET_DEPLOYMENT_STATUS = gql`
       containers {
         name
         state
-        health
+        readiness
         ports
       }
     }
@@ -59,7 +59,7 @@ export const CREATE_DEPLOYMENT = gql`
     createDeployment(input: $input) {
       id
       name
-      composeYaml
+      manifestYaml
       createdAt
     }
   }
@@ -70,7 +70,7 @@ export const UPDATE_DEPLOYMENT = gql`
     updateDeployment(id: $id, input: $input) {
       id
       name
-      composeYaml
+      manifestYaml
       createdAt
     }
   }
@@ -81,7 +81,7 @@ export const START_DEPLOYMENT = gql`
     startDeployment(id: $id) {
       id
       name
-      composeYaml
+      manifestYaml
       createdAt
     }
   }
@@ -174,14 +174,22 @@ export interface CreateAccountInput {
   password: string;
 }
 
+export interface ServiceDefinitionDTO {
+  serviceName: string;
+  image: string;
+  internalPort?: number;
+  subDomain?: string;
+  sslEnabled: boolean;
+}
+
 export interface CreateDeploymentDTO {
   name: string;
-  composeYaml: string;
+  services?: ServiceDefinitionDTO[];
 }
 
 export interface UpdateDeploymentDTO {
   name?: string;
-  composeYaml?: string;
+  services?: ServiceDefinitionDTO[];
 }
 
 export interface ChangePasswordInput {
@@ -192,14 +200,14 @@ export interface ChangePasswordInput {
 export interface Deployment {
   id: string;
   name: string;
-  composeYaml: string;
+  manifestYaml: string;
   createdAt: string;
 }
 
 export interface ContainerStatus {
   name: string;
   state: string;
-  health: string | null;
+  readiness: string | null;
   ports: string[];
 }
 

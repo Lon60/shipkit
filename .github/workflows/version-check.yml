@@ -61,15 +61,12 @@ jobs:
             echo "::error::apps/gateway-api/build.gradle version ($GA_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
           fi
 
-          if [[ -f apps/docker-control/VERSION ]]; then
-            DC_VERSION=$(cat apps/docker-control/VERSION)
-            echo "Docker-control version: $DC_VERSION"
-            if [[ "$DC_VERSION" != "$ROOT_VERSION" ]]; then
-              echo "::error::apps/docker-control/VERSION ($DC_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
-            fi
-          else
-            echo "::error::apps/docker-control/VERSION file missing" && exit 1
+          K3_VERSION=$(cat apps/k3s-control/VERSION | tr -d '[:space:]')
+          echo "k3s-control version: $K3_VERSION"
+          if [[ "$K3_VERSION" != "$ROOT_VERSION" ]]; then
+            echo "::error::apps/k3s-control/VERSION ($K3_VERSION) does not match root VERSION ($ROOT_VERSION)" && exit 1
           fi
+
 
       - name: Validate Release Notes section
         if: github.event_name == 'pull_request'

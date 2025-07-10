@@ -8,11 +8,11 @@ import { useDeploymentActions } from '@/lib/hooks/useDeploymentActions';
 import { DeploymentCard } from './DeploymentCard';
 import { DeploymentDetailsDialog } from './DeploymentDetailsDialog';
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
-import { EditDeploymentDialog } from './EditDeploymentDialog';
+// import { EditDeploymentDialog } from './EditDeploymentDialog'; // Removed
 
 export function DeploymentsList() {
   const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
-  const [editDeployment, setEditDeployment] = useState<Deployment | null>(null);
+  // Edit functionality removed
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
     deployment: Deployment | null;
@@ -64,13 +64,7 @@ export function DeploymentsList() {
     });
   };
 
-  const openEditDialog = (deployment: Deployment) => {
-    setEditDeployment(deployment);
-  };
-
-  const closeEditDialog = () => {
-    setEditDeployment(null);
-  };
+  // Edit dialog functions removed
 
   const refetchStatus = (id: string) => {
     void fetchDeploymentStatus(id);
@@ -143,7 +137,7 @@ export function DeploymentsList() {
               startLoading={!!startLoading[deployment.id]}
               deleteLoading={!!deleteLoading[deployment.id]}
               onView={() => setSelectedDeployment(deployment)}
-              onEdit={() => openEditDialog(deployment)}
+              // Edit disabled
               onStart={() => handleDeploymentStart(deployment)}
               onStop={() => handleDeploymentStop(deployment.id)}
               onDelete={() => openDeleteConfirmation(deployment)}
@@ -159,11 +153,7 @@ export function DeploymentsList() {
         getStatusBadgeColor={getStatusBadgeColor}
       />
 
-      <EditDeploymentDialog
-        deployment={editDeployment}
-        isOpen={!!editDeployment}
-        onClose={closeEditDialog}
-      />
+      {/* EditDeploymentDialog removed */}
 
       <DeleteConfirmationDialog
         isOpen={deleteConfirmation.isOpen}

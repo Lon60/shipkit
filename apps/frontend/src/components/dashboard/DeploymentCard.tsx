@@ -12,7 +12,7 @@ interface DeploymentCardProps {
   startLoading: boolean;
   deleteLoading: boolean;
   onView: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
   onStart: () => void;
   onStop: () => void;
   onDelete: () => void;

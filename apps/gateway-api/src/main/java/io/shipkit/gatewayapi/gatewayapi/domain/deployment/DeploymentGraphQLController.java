@@ -1,6 +1,6 @@
 package io.shipkit.gatewayapi.gatewayapi.domain.deployment;
 
-import docker_control.AppStatus;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppStatus;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.DeploymentStatusDTO;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.CreateDeploymentDTO;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.UpdateDeploymentDTO;
@@ -56,7 +56,7 @@ public class DeploymentGraphQLController {
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
     public DeploymentStatusDTO deploymentStatus(@Argument UUID id) {
-        AppStatus status = deploymentService.getStatus(id);
+        K3sAppStatus status = deploymentService.getStatus(id);
         return DeploymentStatusDTO.from(status);
     }
 

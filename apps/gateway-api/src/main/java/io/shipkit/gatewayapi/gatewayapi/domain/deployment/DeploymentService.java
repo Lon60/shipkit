@@ -1,39 +1,90 @@
 package io.shipkit.gatewayapi.gatewayapi.domain.deployment;
 
-import docker_control.ActionResult;
-import docker_control.AppStatus;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.ResourceNotFoundException;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.UpdateDeploymentDTO;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.CreateDeploymentDTO;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.DeploymentMapper;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.ManifestBuilder;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.K3sControlGrpcClient;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sActionResult;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppStatus;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.ServiceDefinitionDTO;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSettingRepository;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSetting;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.DeploymentServiceDefinition;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.DeploymentServiceDefinitionRepository;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class DeploymentService {
 
     private final DeploymentRepository deploymentRepository;
-    private final DockerControlGrpcClient grpcClient;
+    private final DeploymentServiceDefinitionRepository svcRepo;
+    private final ManifestBuilder manifestBuilder;
+    private final ObjectProvider<K3sControlGrpcClient> k3sClientProvider;
     private final DeploymentMapper deploymentMapper;
+    private final PlatformSettingRepository platformSettingRepository;
 
     @Transactional
     public Deployment createDeployment(CreateDeploymentDTO createDTO) {
         Deployment deployment = deploymentMapper.toEntity(createDTO);
         deployment.setCreatedAt(Instant.now());
         deployment = deploymentRepository.save(deployment);
-        
-        ActionResult result = grpcClient.startCompose(deployment.getId().toString(), deployment.getComposeYaml());
-        if (result.getStatus() != 0) {
-            throw new BadRequestException("Failed to start deployment: " + result.getMessage());
+
+        K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
+        if (k3sClient == null) {
+            throw new IllegalStateException("K3sControlGrpcClient bean not present");
         }
-        
+        // Persist service definitions if provided
+        if (createDTO.services() != null) {
+            for (ServiceDefinitionDTO dto : createDTO.services()) {
+                String sanitized = dto.serviceName().toLowerCase()
+                        .replaceAll("[^a-z0-9-]", "-")
+                        .replaceAll("^-+", "")
+                        .replaceAll("-+$", "");
+
+                if (sanitized.isBlank()) {
+                    throw new BadRequestException("Invalid service name: " + dto.serviceName());
+                }
+
+                DeploymentServiceDefinition def = DeploymentServiceDefinition.builder()
+                        .deployment(deployment)
+                        .serviceName(sanitized)
+                        .image(dto.image())
+                        .internalPort(dto.internalPort())
+                        .subDomain(dto.subDomain())
+                        .sslEnabled(Boolean.TRUE.equals(dto.sslEnabled()))
+                        .build();
+                svcRepo.save(def);
+            }
+        }
+
+        String fqdn = platformSettingRepository.findTopByOrderByCreatedAtDesc()
+                .map(PlatformSetting::getFqdn)
+                .orElse("example.com");
+
+        final Deployment dep = deployment; // effectively final for use in lambda
+        List<DeploymentServiceDefinition> defs = svcRepo.findAll().stream()
+                .filter(d -> dep.equals(d.getDeployment()))
+                .toList();
+
+        String manifest = manifestBuilder.build(deployment, defs, fqdn);
+        deployment.setManifestYaml(manifest);
+        deploymentRepository.save(deployment);
+
+        K3sActionResult res = k3sClient.applyDeployment(deployment.getId().toString(), manifest);
+        if (res.getStatus() != 0) {
+            throw new BadRequestException("Failed to apply deployment: " + res.getMessage());
+        }
         return deployment;
     }
 
@@ -42,22 +93,57 @@ public class DeploymentService {
         Deployment deployment = deploymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
 
-        String originalCompose = deployment.getComposeYaml();
-        
         deploymentMapper.updateEntity(deployment, updateDTO);
-        
-        boolean composeChanged = updateDTO.composeYaml() != null && 
-                                !updateDTO.composeYaml().equals(originalCompose);
-        
-        if (composeChanged) {
-            ActionResult stopResult = grpcClient.stopApp(id.toString());
-            if (stopResult.getStatus() != 0 && !stopResult.getMessage().toLowerCase().contains("app not found")) {
-                throw new BadRequestException("Failed to stop existing deployment: " + stopResult.getMessage());
+
+        boolean servicesChanged = updateDTO.services() != null;
+        boolean nameChanged = updateDTO.name() != null;
+
+        if (servicesChanged || nameChanged) {
+            K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
+            if (k3sClient == null) {
+                throw new IllegalStateException("K3sControlGrpcClient bean not present");
             }
-            
-            ActionResult startResult = grpcClient.startCompose(id.toString(), updateDTO.composeYaml());
-            if (startResult.getStatus() != 0) {
-                throw new BadRequestException("Failed to start updated deployment: " + startResult.getMessage());
+
+            // Update service definitions (simplified: delete and re-insert for this deployment)
+            // remove existing defs for this deployment
+            svcRepo.findAll().stream()
+                    .filter(d -> deployment.equals(d.getDeployment()))
+                    .forEach(svcRepo::delete);
+
+            for (ServiceDefinitionDTO dto : updateDTO.services()) {
+                String sanitized = dto.serviceName().toLowerCase()
+                        .replaceAll("[^a-z0-9-]", "-")
+                        .replaceAll("^-+", "")
+                        .replaceAll("-+$", "");
+
+                if (sanitized.isBlank()) {
+                    throw new BadRequestException("Invalid service name: " + dto.serviceName());
+                }
+
+                DeploymentServiceDefinition def = DeploymentServiceDefinition.builder()
+                        .deployment(deployment)
+                        .serviceName(sanitized)
+                        .image(dto.image())
+                        .internalPort(dto.internalPort())
+                        .subDomain(dto.subDomain())
+                        .sslEnabled(Boolean.TRUE.equals(dto.sslEnabled()))
+                        .build();
+                svcRepo.save(def);
+            }
+
+            String fqdn = platformSettingRepository.findTopByOrderByCreatedAtDesc()
+                    .map(PlatformSetting::getFqdn)
+                    .orElse("example.com");
+            final Deployment dep = deployment;
+            List<DeploymentServiceDefinition> defs = svcRepo.findAll().stream()
+                    .filter(d -> dep.equals(d.getDeployment()))
+                    .toList();
+
+            String manifest = manifestBuilder.build(deployment, defs, fqdn);
+            deployment.setManifestYaml(manifest);
+            K3sActionResult res = k3sClient.applyDeployment(id.toString(), manifest);
+            if (res.getStatus() != 0) {
+                throw new BadRequestException("Failed to apply deployment: " + res.getMessage());
             }
         }
         
@@ -70,31 +156,47 @@ public class DeploymentService {
             throw new ResourceNotFoundException("Deployment not found: " + id);
         }
         
-        ActionResult result = grpcClient.stopApp(id.toString());
-        if (result.getStatus() != 0 && !result.getMessage().toLowerCase().contains("app not found")) {
-            throw new BadRequestException("Failed to stop deployment before deletion: " + result.getMessage());
+        K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
+        if (k3sClient == null) {
+            throw new IllegalStateException("K3sControlGrpcClient bean not present");
         }
-        
+
+        K3sActionResult res = k3sClient.deleteDeployment(id.toString());
+        if (res.getStatus() != 0 && (res.getMessage() == null || !res.getMessage().toLowerCase().contains("not found"))) {
+            throw new BadRequestException("Failed to delete deployment: " + res.getMessage());
+        }
+
+        svcRepo.deleteByDeployment_Id(id);
+
         deploymentRepository.deleteById(id);
     }
 
     @Transactional
     public void stopDeployment(UUID id) {
-        if (!deploymentRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Deployment not found: " + id);
+        Deployment deployment = deploymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
+
+        K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
+        if (k3sClient == null) {
+            throw new IllegalStateException("K3sControlGrpcClient bean not present");
         }
-        ActionResult result = grpcClient.stopApp(id.toString());
-        if (result.getStatus() != 0) {
-            throw new BadRequestException("Failed to stop compose: " + result.getMessage());
+
+        K3sActionResult res = k3sClient.deleteDeployment(id.toString());
+        if (res.getStatus() != 0 && (res.getMessage() == null || !res.getMessage().toLowerCase().contains("not found"))) {
+            throw new BadRequestException("Failed to stop deployment: " + res.getMessage());
         }
     }
 
     @Transactional(readOnly = true)
-    public AppStatus getStatus(UUID id) {
+    public K3sAppStatus getStatus(UUID id) {
         if (!deploymentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Deployment not found: " + id);
         }
-        return grpcClient.getStatus(id.toString());
+        K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
+        if (k3sClient == null) {
+            throw new IllegalStateException("K3sControlGrpcClient bean not present");
+        }
+        return k3sClient.getStatus(id.toString());
     }
 
     @Transactional(readOnly = true)
@@ -113,10 +215,27 @@ public class DeploymentService {
         Deployment deployment = deploymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
 
-        ActionResult result = grpcClient.startCompose(id.toString(), deployment.getComposeYaml());
-        if (result.getStatus() != 0) {
-            throw new BadRequestException("Failed to start compose: " + result.getMessage());
+        // For K3s runtime "start" simply reapplies the manifest
+        K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
+        if (k3sClient == null) {
+            throw new IllegalStateException("K3sControlGrpcClient bean not present");
+        }
+        String manifest = deployment.getManifestYaml();
+        if (manifest == null || manifest.isBlank()) {
+            String fqdn = platformSettingRepository.findTopByOrderByCreatedAtDesc()
+                    .map(PlatformSetting::getFqdn)
+                    .orElse("example.com");
+            List<DeploymentServiceDefinition> defs = svcRepo.findAll().stream()
+                    .filter(d -> deployment.equals(d.getDeployment()))
+                    .toList();
+            manifest = manifestBuilder.build(deployment, defs, fqdn);
+        }
+        K3sActionResult res = k3sClient.applyDeployment(id.toString(), manifest);
+        if (res.getStatus() != 0) {
+            throw new BadRequestException("Failed to start deployment: " + res.getMessage());
         }
         return deployment;
     }
+
+    // previewDeployment removed - manifest is generated server-side on create/update
 } 
