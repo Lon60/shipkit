@@ -202,9 +202,10 @@ kind: Ingress
 metadata:
   name: shipkit-${DEV_DOMAIN//./-}
   namespace: shipkit-system
-  annotations:
-    kubernetes.io/ingress.class: traefik
+  labels:
+    app.kubernetes.io/managed-by: shipkit-dev-script
 spec:
+  ingressClassName: traefik
   rules:
   - host: ${DEV_DOMAIN}
     http:

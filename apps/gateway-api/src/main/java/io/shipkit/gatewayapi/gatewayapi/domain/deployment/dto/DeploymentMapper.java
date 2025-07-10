@@ -11,11 +11,12 @@ public interface DeploymentMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "manifestYaml", constant = "")
     Deployment toEntity(CreateDeploymentDTO dto);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "name", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "manifestYaml", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "manifestYaml", ignore = true)
     void updateEntity(@MappingTarget Deployment entity, UpdateDeploymentDTO dto);
 } 

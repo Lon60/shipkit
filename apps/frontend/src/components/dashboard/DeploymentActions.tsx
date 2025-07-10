@@ -13,7 +13,7 @@ interface DeploymentActionsProps {
   stopLoading: boolean;
   startLoading: boolean;
   deleteLoading: boolean;
-  onEdit: () => void;
+  onEdit?: () => void;
   onStart: () => void;
   onStop: () => void;
   onDelete: () => void;
@@ -35,6 +35,7 @@ export function DeploymentActions({
   // Desktop layout (hidden on mobile)
   const DesktopActions = () => (
     <div className="hidden sm:flex space-x-2">
+      {onEdit && (
       <Button 
         variant="outline" 
         size="sm"
@@ -43,7 +44,7 @@ export function DeploymentActions({
       >
         <Edit className="h-4 w-4 mr-2" />
         Edit
-      </Button>
+      </Button>) }
       
       {isStopped ? (
         <Button 
@@ -117,10 +118,11 @@ export function DeploymentActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {onEdit && (
           <DropdownMenuItem onClick={onEdit} disabled={isLoading}>
             <Edit className="h-4 w-4 mr-2" />
             Edit
-          </DropdownMenuItem>
+          </DropdownMenuItem>) }
           
           {isStopped ? (
             <DropdownMenuItem

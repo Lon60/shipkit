@@ -53,12 +53,6 @@ public class DeploymentGraphQLController {
         return deploymentService.startDeployment(id);
     }
 
-    @MutationMapping
-    @PreAuthorize("isAuthenticated()")
-    public String previewDeployment(@Argument @Valid CreateDeploymentDTO input) {
-        return deploymentService.previewDeployment(input);
-    }
-
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
     public DeploymentStatusDTO deploymentStatus(@Argument UUID id) {

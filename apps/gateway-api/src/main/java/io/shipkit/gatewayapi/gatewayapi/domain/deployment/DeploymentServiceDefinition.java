@@ -34,9 +34,6 @@ public class DeploymentServiceDefinition {
     @Column(name = "sub_domain")
     private String subDomain;
 
-    @Column(nullable = false)
-    private boolean expose;
-
     @Column(name = "ssl_enabled", nullable = false)
     private boolean sslEnabled;
 

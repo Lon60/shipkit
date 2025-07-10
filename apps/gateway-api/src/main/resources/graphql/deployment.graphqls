@@ -10,19 +10,16 @@ input ServiceDefinitionDTO {
     image: String!
     internalPort: Int
     subDomain: String
-    expose: Boolean!
     sslEnabled: Boolean!
 }
 
 input CreateDeploymentDTO {
     name: String!
-    manifestYaml: String!
     services: [ServiceDefinitionDTO!]
 }
 
 input UpdateDeploymentDTO {
     name: String
-    manifestYaml: String
     services: [ServiceDefinitionDTO!]
 }
 
@@ -47,7 +44,6 @@ extend type Mutation {
     deleteDeployment(id: ID!): Boolean!
     startDeployment(id: ID!): Deployment!
     stopDeployment(id: ID!): Boolean!
-    previewDeployment(input: CreateDeploymentDTO!): String!
 }
 
 extend type Query {

@@ -9,7 +9,7 @@ import java.util.List;
 @Component
 public class ManifestBuilder {
 
-    public String build(Deployment deployment, List<DeploymentServiceDefinition> services) {
+    public String build(Deployment deployment, List<DeploymentServiceDefinition> services, String fqdn) {
         StringBuilder sb = new StringBuilder();
         String ns = "deploy-" + deployment.getId();
 
@@ -31,8 +31,8 @@ public class ManifestBuilder {
             sb.append("apiVersion: v1\nkind: Service\nmetadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
               .append("spec:\n  selector:\n    app: ").append(app).append("\n  ports:\n  - port: ").append(port).append("\n    targetPort: ").append(port).append("\n    protocol: TCP\n---\n");
 
-            if (svc.isExpose()) {
-                String host = (svc.getSubDomain() != null && !svc.getSubDomain().isBlank()) ? svc.getSubDomain() + ".example.com" : app + ".example.com";
+            if (svc.getSubDomain() != null && !svc.getSubDomain().isBlank()) {
+                String host = svc.getSubDomain() + "." + fqdn;
                 sb.append("apiVersion: traefik.containo.us/v1alpha1\nkind: IngressRoute\nmetadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
                   .append("spec:\n  entryPoints:\n  - web\n");
                 if (svc.isSslEnabled()) {

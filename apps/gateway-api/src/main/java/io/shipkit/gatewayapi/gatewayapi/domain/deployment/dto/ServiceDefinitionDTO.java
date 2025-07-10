@@ -8,6 +8,5 @@ public record ServiceDefinitionDTO(
         @NotBlank String image,
         Integer internalPort,
         String subDomain,
-        @NotNull Boolean expose,
         @NotNull Boolean sslEnabled
 ) {} 

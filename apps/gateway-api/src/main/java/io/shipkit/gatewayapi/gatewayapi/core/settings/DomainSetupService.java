@@ -120,7 +120,7 @@ public class DomainSetupService {
             var metadata = new io.kubernetes.client.openapi.models.V1ObjectMeta()
                     .name(ingressName)
                     .namespace(kubernetesNamespace)
-                    .putAnnotationsItem("kubernetes.io/ingress.class", "traefik");
+                    .putLabelsItem("app.kubernetes.io/managed-by", "shipkit");
 
             var paths = java.util.List.of(
                     new io.kubernetes.client.openapi.models.V1HTTPIngressPath()

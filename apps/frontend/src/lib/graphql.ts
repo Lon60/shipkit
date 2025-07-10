@@ -158,12 +158,6 @@ export const GET_ACCOUNT = gql`
   }
 `;
 
-export const PREVIEW_DEPLOYMENT = gql`
-  mutation PreviewDeployment($input: CreateDeploymentDTO!) {
-    previewDeployment(input: $input)
-  }
-`;
-
 export interface Account {
   id: string;
   email: string;
@@ -185,19 +179,16 @@ export interface ServiceDefinitionDTO {
   image: string;
   internalPort?: number;
   subDomain?: string;
-  expose: boolean;
   sslEnabled: boolean;
 }
 
 export interface CreateDeploymentDTO {
   name: string;
-  manifestYaml: string;
   services?: ServiceDefinitionDTO[];
 }
 
 export interface UpdateDeploymentDTO {
   name?: string;
-  manifestYaml?: string;
   services?: ServiceDefinitionDTO[];
 }
 

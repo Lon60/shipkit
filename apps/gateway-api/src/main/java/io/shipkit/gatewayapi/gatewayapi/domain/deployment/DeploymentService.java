@@ -14,6 +14,8 @@ import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.K3sControlGrpc
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sActionResult;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppStatus;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.dto.ServiceDefinitionDTO;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSettingRepository;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.PlatformSetting;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +32,7 @@ public class DeploymentService {
     private final ManifestBuilder manifestBuilder;
     private final ObjectProvider<K3sControlGrpcClient> k3sClientProvider;
     private final DeploymentMapper deploymentMapper;
+    private final PlatformSettingRepository platformSettingRepository;
 
     @Transactional
     public Deployment createDeployment(CreateDeploymentDTO createDTO) {
@@ -41,7 +44,7 @@ public class DeploymentService {
         if (k3sClient == null) {
             throw new IllegalStateException("K3sControlGrpcClient bean not present");
         }
-        // persist service definitions if provided
+        // Persist service definitions if provided
         if (createDTO.services() != null) {
             for (ServiceDefinitionDTO dto : createDTO.services()) {
                 DeploymentServiceDefinition def = DeploymentServiceDefinition.builder()
@@ -50,14 +53,25 @@ public class DeploymentService {
                         .image(dto.image())
                         .internalPort(dto.internalPort())
                         .subDomain(dto.subDomain())
-                        .expose(Boolean.TRUE.equals(dto.expose()))
                         .sslEnabled(Boolean.TRUE.equals(dto.sslEnabled()))
                         .build();
                 svcRepo.save(def);
             }
         }
 
-        String manifest = manifestBuilder.build(deployment, svcRepo.findAll());
+        String fqdn = platformSettingRepository.findTopByOrderByCreatedAtDesc()
+                .map(PlatformSetting::getFqdn)
+                .orElse("example.com");
+
+        final Deployment dep = deployment; // effectively final for use in lambda
+        List<DeploymentServiceDefinition> defs = svcRepo.findAll().stream()
+                .filter(d -> dep.equals(d.getDeployment()))
+                .toList();
+
+        String manifest = manifestBuilder.build(deployment, defs, fqdn);
+        deployment.setManifestYaml(manifest);
+        deploymentRepository.save(deployment);
+
         K3sActionResult res = k3sClient.applyDeployment(deployment.getId().toString(), manifest);
         if (res.getStatus() != 0) {
             throw new BadRequestException("Failed to apply deployment: " + res.getMessage());
@@ -70,37 +84,45 @@ public class DeploymentService {
         Deployment deployment = deploymentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
 
-        String originalManifest = deployment.getManifestYaml();
-        
         deploymentMapper.updateEntity(deployment, updateDTO);
-        
-        boolean manifestChanged = updateDTO.manifestYaml() != null && 
-                                !updateDTO.manifestYaml().equals(originalManifest);
-        
-        if (manifestChanged) {
+
+        boolean servicesChanged = updateDTO.services() != null;
+        boolean nameChanged = updateDTO.name() != null;
+
+        if (servicesChanged || nameChanged) {
             K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
             if (k3sClient == null) {
                 throw new IllegalStateException("K3sControlGrpcClient bean not present");
             }
 
-            // Update manifest definitions if provided (simplified: delete all & re-insert)
-            if (updateDTO.services() != null) {
-                svcRepo.deleteAll();
-                for (ServiceDefinitionDTO dto : updateDTO.services()) {
-                    DeploymentServiceDefinition def = DeploymentServiceDefinition.builder()
-                            .deployment(deployment)
-                            .serviceName(dto.serviceName())
-                            .image(dto.image())
-                            .internalPort(dto.internalPort())
-                            .subDomain(dto.subDomain())
-                            .expose(Boolean.TRUE.equals(dto.expose()))
-                            .sslEnabled(Boolean.TRUE.equals(dto.sslEnabled()))
-                            .build();
-                    svcRepo.save(def);
-                }
+            // Update service definitions (simplified: delete and re-insert for this deployment)
+            // remove existing defs for this deployment
+            svcRepo.findAll().stream()
+                    .filter(d -> deployment.equals(d.getDeployment()))
+                    .forEach(svcRepo::delete);
+
+            for (ServiceDefinitionDTO dto : updateDTO.services()) {
+                DeploymentServiceDefinition def = DeploymentServiceDefinition.builder()
+                        .deployment(deployment)
+                        .serviceName(dto.serviceName())
+                        .image(dto.image())
+                        .internalPort(dto.internalPort())
+                        .subDomain(dto.subDomain())
+                        .sslEnabled(Boolean.TRUE.equals(dto.sslEnabled()))
+                        .build();
+                svcRepo.save(def);
             }
 
-            String manifest = manifestBuilder.build(deployment, svcRepo.findAll());
+            String fqdn = platformSettingRepository.findTopByOrderByCreatedAtDesc()
+                    .map(PlatformSetting::getFqdn)
+                    .orElse("example.com");
+            final Deployment dep = deployment;
+            List<DeploymentServiceDefinition> defs = svcRepo.findAll().stream()
+                    .filter(d -> dep.equals(d.getDeployment()))
+                    .toList();
+
+            String manifest = manifestBuilder.build(deployment, defs, fqdn);
+            deployment.setManifestYaml(manifest);
             K3sActionResult res = k3sClient.applyDeployment(id.toString(), manifest);
             if (res.getStatus() != 0) {
                 throw new BadRequestException("Failed to apply deployment: " + res.getMessage());
@@ -170,7 +192,13 @@ public class DeploymentService {
         }
         String manifest = deployment.getManifestYaml();
         if (manifest == null || manifest.isBlank()) {
-            manifest = manifestBuilder.build(deployment, svcRepo.findAll());
+            String fqdn = platformSettingRepository.findTopByOrderByCreatedAtDesc()
+                    .map(PlatformSetting::getFqdn)
+                    .orElse("example.com");
+            List<DeploymentServiceDefinition> defs = svcRepo.findAll().stream()
+                    .filter(d -> deployment.equals(d.getDeployment()))
+                    .toList();
+            manifest = manifestBuilder.build(deployment, defs, fqdn);
         }
         K3sActionResult res = k3sClient.applyDeployment(id.toString(), manifest);
         if (res.getStatus() != 0) {
@@ -179,26 +207,5 @@ public class DeploymentService {
         return deployment;
     }
 
-    @Transactional(readOnly = true)
-    public String previewDeployment(CreateDeploymentDTO dto) {
-        Deployment dummy = Deployment.builder()
-                .id(UUID.randomUUID())
-                .name(dto.name())
-                .createdAt(Instant.now())
-                .build();
-
-        List<DeploymentServiceDefinition> defs = dto.services() == null ? List.of() : dto.services().stream()
-                .map(s -> DeploymentServiceDefinition.builder()
-                        .deployment(dummy)
-                        .serviceName(s.serviceName())
-                        .image(s.image())
-                        .internalPort(s.internalPort())
-                        .subDomain(s.subDomain())
-                        .expose(Boolean.TRUE.equals(s.expose()))
-                        .sslEnabled(Boolean.TRUE.equals(s.sslEnabled()))
-                        .build())
-                .toList();
-
-        return manifestBuilder.build(dummy, defs);
-    }
+    // previewDeployment removed - manifest is generated server-side on create/update
 } 

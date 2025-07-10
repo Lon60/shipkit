@@ -9,11 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CodeEditor } from '@/components/ui/code-editor';
 import {
   CREATE_DEPLOYMENT,
   GET_DEPLOYMENTS,
-  PREVIEW_DEPLOYMENT,
   type Deployment,
 } from '@/lib/graphql';
 
@@ -30,7 +28,6 @@ const serviceSchema = z.object({
       'Port must be a positive number'
     ),
   subDomain: z.string().optional(),
-  expose: z.boolean().optional().default(false),
   sslEnabled: z.boolean().optional().default(false),
 });
 
@@ -46,7 +43,7 @@ const wizardSchema = z.object({
 
 type WizardData = z.input<typeof wizardSchema>;
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 
 interface CreateDeploymentWizardProps {
   onSuccess?: () => void;
@@ -54,7 +51,7 @@ interface CreateDeploymentWizardProps {
 
 export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProps) {
   const [step, setStep] = useState<Step>(1);
-  const [previewYaml, setPreviewYaml] = useState<string>('');
+  // Preview removed
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -75,9 +72,7 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
     refetchQueries: [{ query: GET_DEPLOYMENTS }],
   });
 
-  const [previewDeployment] = useMutation<{ previewDeployment: string }>(PREVIEW_DEPLOYMENT);
-
-  const nextStep = () => setStep((prev) => (prev < 3 ? ((prev + 1) as Step) : prev));
+  const nextStep = () => setStep((prev) => (prev < 2 ? ((prev + 1) as Step) : prev));
   const prevStep = () => setStep((prev) => (prev > 1 ? ((prev - 1) as Step) : prev));
 
   // Service table handlers
@@ -88,7 +83,6 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
       image: '',
       internalPort: undefined,
       subDomain: undefined,
-      expose: false,
       sslEnabled: false,
     };
     setValue('services', [...current, newService]);
@@ -102,7 +96,7 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
   };
 
   const onSubmit: SubmitHandler<WizardData> = async (data) => {
-    if (step < 3) {
+    if (step < 2) {
       nextStep();
       return;
     }
@@ -114,7 +108,6 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
           input: {
             name: data.name,
             services: data.services,
-            manifestYaml: previewYaml,
           },
         },
       });
@@ -125,17 +118,6 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
       console.error(err);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const generatePreview = async () => {
-    const data = watch();
-    try {
-      const res = await previewDeployment({ variables: { input: { ...data, manifestYaml: '' } } });
-      setPreviewYaml(res.data?.previewDeployment ?? '');
-    } catch (e) {
-      toast.error('Preview failed');
-      console.error(e);
     }
   };
 
@@ -196,19 +178,6 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
                   </div>
                   <div className="flex items-center space-x-2">
                     <Controller
-                      name={`services.${idx}.expose` as const}
-                      control={control}
-                      render={({ field }) => (
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-                        />
-                      )}
-                    />
-                    <Label>Expose</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Controller
                       name={`services.${idx}.sslEnabled` as const}
                       control={control}
                       render={({ field }) => (
@@ -235,14 +204,7 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
         </div>
       )}
 
-      {step === 3 && (
-        <div className="space-y-4">
-          <Button type="button" size="sm" onClick={generatePreview}>
-            Refresh Preview
-          </Button>
-          <CodeEditor value={previewYaml} height={300} language="yaml" readOnly />
-        </div>
-      )}
+      {/* Step 3 section removed */}
 
       <div className="flex justify-between">
         {step > 1 && (
@@ -250,12 +212,12 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
             Back
           </Button>
         )}
-        {step < 3 && (
+        {step < 2 && (
           <Button type="button" onClick={nextStep}>
             Next
           </Button>
         )}
-        {step === 3 && (
+        {step === 2 && (
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Deploying...' : 'Deploy'}
           </Button>
