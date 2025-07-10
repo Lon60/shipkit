@@ -76,7 +76,7 @@ export function DeploymentDetailsDialog({
                             <p className="font-medium">{container.name}</p>
                             <div className="flex flex-col sm:flex-row sm:space-x-4 mt-1 gap-1 sm:gap-0">
                               <span className="text-sm">State: {container.state}</span>
-                              <span className="text-sm">Health: {container.health}</span>
+                              <span className="text-sm">Readiness: {container.readiness}</span>
                             </div>
                           </div>
                           {container.ports.length > 0 && (

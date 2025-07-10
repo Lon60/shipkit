@@ -47,7 +47,7 @@ export const GET_DEPLOYMENT_STATUS = gql`
       containers {
         name
         state
-        health
+        readiness
         ports
       }
     }
@@ -207,7 +207,7 @@ export interface Deployment {
 export interface ContainerStatus {
   name: string;
   state: string;
-  health: string | null;
+  readiness: string | null;
   ports: string[];
 }
 
