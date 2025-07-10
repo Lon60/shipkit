@@ -17,6 +17,7 @@
 set -euo pipefail
 
 CLUSTER_NAME=${CLUSTER_NAME:-shipkit}
+DEV_DOMAIN=${DEV_DOMAIN:-localhost}
 K3D_VERSION="v5.6.0"
 K8S_VERSION="v1.27.3"
 
@@ -90,8 +91,6 @@ else
     --servers 1 --agents 0 \
     --api-port "6550" \
     --port "80:80@loadbalancer" \
-    --port "443:443@loadbalancer" \
-    --port "9998:9998@loadbalancer" # gRPC port example for k3s-control
 
   echo "[+] k3d cluster '${CLUSTER_NAME}' created successfully."
 fi
@@ -192,7 +191,41 @@ kubectl apply -f "$PROJECT_ROOT/k8s/dev/postgres.yaml"
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/gateway-api.yaml"
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/frontend.yaml"
 
-echo "[✓] Shipkit dev stack is now running. Access UI at: http://localhost"
+# -------------------------------------------------------------------------------------------------
+# Create default Ingress for local development
+# -------------------------------------------------------------------------------------------------
+
+echo "[+] Creating default Ingress for http://${DEV_DOMAIN} → / (frontend) and /api (gateway)"
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shipkit-${DEV_DOMAIN//./-}
+  namespace: shipkit-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: ${DEV_DOMAIN}
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-api
+            port:
+              number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: shipkit-frontend
+            port:
+              number: 3000
+EOF
+
+echo "[✓] Shipkit dev stack is now running. Access UI at: http://${DEV_DOMAIN}"
 
 # -------------------------------------------------------------------------------------------------
 # Final instructions
