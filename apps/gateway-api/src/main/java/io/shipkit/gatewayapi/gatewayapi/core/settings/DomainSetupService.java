@@ -12,10 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Map;
 
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.InternalServerException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException;
@@ -63,10 +60,6 @@ public class DomainSetupService {
             rollbackIngress(domain);
             throw ex;
         }
-    }
-
-    private void issueCertificate(String domain) {
-        // Traefik ACME will issue certificates automatically – nothing to do here
     }
 
     private void validateDomain(String domain) {
@@ -178,10 +171,6 @@ public class DomainSetupService {
         } catch (Exception e) {
             throw new InternalServerException("Failed to configure Traefik Ingress: " + e.getMessage());
         }
-    }
-
-    private void reloadNginx() {
-        // Traefik reloads config dynamically – nothing to do
     }
 
     private void rollbackIngress(String domain) {
