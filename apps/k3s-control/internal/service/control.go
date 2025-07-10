@@ -181,13 +181,25 @@ func (s *Service) DeleteDeployment(ctx context.Context, req *pb.DeleteRequest) (
 	return &pb.ActionResult{Status: 0, Message: "delete requested"}, nil
 }
 
-// GetStatus returns a summary of pod container status within the namespace.
 func (s *Service) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.AppStatus, error) {
 	if s.noop {
 		return &pb.AppStatus{Uuid: req.Uuid, Status: 0, Message: "noop status", State: pb.AppState_UNKNOWN}, nil
 	}
 
 	ns := fmt.Sprintf("deploy-%s", req.Uuid)
+
+	namespaceObj, errNs := s.clientset.CoreV1().Namespaces().Get(ctx, ns, metav1.GetOptions{})
+	if errNs != nil {
+		if apierrors.IsNotFound(errNs) {
+			return &pb.AppStatus{Uuid: req.Uuid, Status: 0, Message: "namespace deleted", State: pb.AppState_STOPPED}, nil
+		}
+		return &pb.AppStatus{Uuid: req.Uuid, Status: 1, Message: errNs.Error(), State: pb.AppState_ERROR}, nil
+	}
+
+	if namespaceObj.DeletionTimestamp != nil {
+		return &pb.AppStatus{Uuid: req.Uuid, Status: 0, Message: "namespace terminating", State: pb.AppState_STOPPING}, nil
+	}
+
 	pods, err := s.clientset.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
