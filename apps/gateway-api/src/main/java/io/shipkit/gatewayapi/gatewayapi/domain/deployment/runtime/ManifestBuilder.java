@@ -17,7 +17,16 @@ public class ManifestBuilder {
         sb.append("apiVersion: v1\nkind: Namespace\nmetadata:\n  name: ").append(ns).append("\n---\n");
 
         for (DeploymentServiceDefinition svc : services) {
-            String app = svc.getServiceName();
+            // Kubernetes resource names must be DNS-1123 compliant (lower-case alphanum and '-')
+            String app = svc.getServiceName().toLowerCase()
+                    .replaceAll("[^a-z0-9-]", "-")        // replace invalid chars
+                    .replaceAll("^-+", "")                 // trim leading hyphens
+                    .replaceAll("-+$", "");               // trim trailing hyphens
+
+            if (app.isBlank()) {
+                throw new IllegalArgumentException("Service name '" + svc.getServiceName() + "' is not valid after sanitisation");
+            }
+
             int port   = svc.getInternalPort() != null ? svc.getInternalPort() : 80;
 
             // Deployment
@@ -33,7 +42,7 @@ public class ManifestBuilder {
 
             if (svc.getSubDomain() != null && !svc.getSubDomain().isBlank()) {
                 String host = svc.getSubDomain() + "." + fqdn;
-                sb.append("apiVersion: traefik.containo.us/v1alpha1\nkind: IngressRoute\nmetadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
+                sb.append("apiVersion: traefik.io/v1alpha1\nkind: IngressRoute\nmetadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
                   .append("spec:\n  entryPoints:\n  - web\n");
                 if (svc.isSslEnabled()) {
                     sb.append("  - websecure\n");

@@ -47,9 +47,18 @@ public class DeploymentService {
         // Persist service definitions if provided
         if (createDTO.services() != null) {
             for (ServiceDefinitionDTO dto : createDTO.services()) {
+                String sanitized = dto.serviceName().toLowerCase()
+                        .replaceAll("[^a-z0-9-]", "-")
+                        .replaceAll("^-+", "")
+                        .replaceAll("-+$", "");
+
+                if (sanitized.isBlank()) {
+                    throw new BadRequestException("Invalid service name: " + dto.serviceName());
+                }
+
                 DeploymentServiceDefinition def = DeploymentServiceDefinition.builder()
                         .deployment(deployment)
-                        .serviceName(dto.serviceName())
+                        .serviceName(sanitized)
                         .image(dto.image())
                         .internalPort(dto.internalPort())
                         .subDomain(dto.subDomain())
@@ -102,9 +111,18 @@ public class DeploymentService {
                     .forEach(svcRepo::delete);
 
             for (ServiceDefinitionDTO dto : updateDTO.services()) {
+                String sanitized = dto.serviceName().toLowerCase()
+                        .replaceAll("[^a-z0-9-]", "-")
+                        .replaceAll("^-+", "")
+                        .replaceAll("-+$", "");
+
+                if (sanitized.isBlank()) {
+                    throw new BadRequestException("Invalid service name: " + dto.serviceName());
+                }
+
                 DeploymentServiceDefinition def = DeploymentServiceDefinition.builder()
                         .deployment(deployment)
-                        .serviceName(dto.serviceName())
+                        .serviceName(sanitized)
                         .image(dto.image())
                         .internalPort(dto.internalPort())
                         .subDomain(dto.subDomain())

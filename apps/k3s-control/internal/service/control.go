@@ -122,10 +122,17 @@ func (s *Service) ApplyDeployment(ctx context.Context, req *pb.ApplyRequest) (*p
 			return &pb.ActionResult{Status: 1, Message: "YAML decode error", Details: err.Error()}, nil
 		}
 
-		// Lookup REST mapping for this GVK
 		mapping, err := s.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			return &pb.ActionResult{Status: 1, Message: "REST mapping error", Details: err.Error()}, nil
+			if meta.IsNoMatchError(err) {
+				if r, ok := s.mapper.(meta.ResettableRESTMapper); ok {
+					r.Reset()
+					mapping, err = s.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+				}
+			}
+			if err != nil {
+				return &pb.ActionResult{Status: 1, Message: "REST mapping error", Details: err.Error()}, nil
+			}
 		}
 
 		// Namespaced?
