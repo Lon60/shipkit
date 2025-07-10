@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipkit-frontend
+  namespace: shipkit-system
+spec:
+  selector:
+    app: shipkit-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipkit-frontend
+  namespace: shipkit-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipkit-frontend
+  template:
+    metadata:
+      labels:
+        app: shipkit-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/lon60/shipkit-frontend:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: shipkit-env
+          ports:
+            - containerPort: 3000 

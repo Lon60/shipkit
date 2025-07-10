@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3s-control
+  namespace: shipkit-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: server
+          imagePullPolicy: Never 

@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [gateway-api, docker-control, frontend]
+        service: [gateway-api, k3s-control, frontend]
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -25,19 +25,22 @@ jobs:
 
       - name: Build gateway-api
         if: matrix.service == 'gateway-api'
-        working-directory: gateway-api
+        working-directory: apps/gateway-api
         run: ./gradlew build --no-daemon
 
-      - name: Set up Go 1.x (only for docker-control)
-        if: matrix.service == 'docker-control'
+      # Build k3s-control (Go)
+      - name: Set up Go 1.x (only for k3s-control)
+        if: matrix.service == 'k3s-control'
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
 
-      - name: Build docker-control
-        if: matrix.service == 'docker-control'
-        working-directory: docker-control
+      - name: Build k3s-control
+        if: matrix.service == 'k3s-control'
+        working-directory: apps/k3s-control
         run: make build
+
+      # gateway-api and frontend handled above
 
       - name: Set up Bun (only for frontend)
         if: matrix.service == 'frontend'
@@ -47,7 +50,7 @@ jobs:
 
       - name: Install deps & build frontend
         if: matrix.service == 'frontend'
-        working-directory: frontend
+        working-directory: apps/frontend
         env:
           SKIP_ENV_VALIDATION: "1"
         run: |
