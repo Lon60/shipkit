@@ -165,14 +165,26 @@ public class DeploymentService {
         if (res.getStatus() != 0 && (res.getMessage() == null || !res.getMessage().toLowerCase().contains("not found"))) {
             throw new BadRequestException("Failed to delete deployment: " + res.getMessage());
         }
-        
+
+        svcRepo.deleteByDeployment_Id(id);
+
         deploymentRepository.deleteById(id);
     }
 
     @Transactional
     public void stopDeployment(UUID id) {
-        // For K3s runtime stop == delete namespace
-        deleteDeployment(id);
+        Deployment deployment = deploymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Deployment not found: " + id));
+
+        K3sControlGrpcClient k3sClient = k3sClientProvider.getIfAvailable();
+        if (k3sClient == null) {
+            throw new IllegalStateException("K3sControlGrpcClient bean not present");
+        }
+
+        K3sActionResult res = k3sClient.deleteDeployment(id.toString());
+        if (res.getStatus() != 0 && (res.getMessage() == null || !res.getMessage().toLowerCase().contains("not found"))) {
+            throw new BadRequestException("Failed to stop deployment: " + res.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

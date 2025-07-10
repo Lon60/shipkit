@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 
 public interface DeploymentServiceDefinitionRepository extends JpaRepository<DeploymentServiceDefinition, UUID> {
+
+    void deleteByDeployment_Id(UUID deploymentId);
 } 

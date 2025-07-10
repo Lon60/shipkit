@@ -190,6 +190,10 @@ func (s *Service) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.App
 	ns := fmt.Sprintf("deploy-%s", req.Uuid)
 	pods, err := s.clientset.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Namespace no longer exists → deployment is stopped
+			return &pb.AppStatus{Uuid: req.Uuid, Status: 0, Message: "namespace deleted", State: pb.AppState_STOPPED}, nil
+		}
 		return &pb.AppStatus{Uuid: req.Uuid, Status: 1, Message: err.Error(), State: pb.AppState_ERROR}, nil
 	}
 
@@ -204,7 +208,12 @@ func (s *Service) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.App
 		for _, cs := range p.Status.ContainerStatuses {
 			cstate := "unknown"
 			if cs.State.Running != nil {
-				cstate = "running"
+				if p.ObjectMeta.DeletionTimestamp != nil {
+					cstate = "terminating"
+					overallState = pb.AppState_STOPPING
+				} else {
+					cstate = "running"
+				}
 			} else if cs.State.Waiting != nil {
 				cstate = "waiting"
 				overallState = pb.AppState_STARTING
