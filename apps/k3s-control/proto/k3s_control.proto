@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package k3s_control;
 
-option go_package = "github.com/shipkit/k3s-control/proto";
+option go_package = "github.com/shipkit/k3s-control/proto;k3s_control";
 
 service K3sControlService {
   rpc ApplyDeployment (ApplyRequest) returns (ActionResult);

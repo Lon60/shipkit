@@ -1,9 +1,9 @@
 module github.com/shipkit/k3s-control
 
-go 1.21
+go 1.24
 
 require (
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.73.0
 	k8s.io/api v0.27.3
 	k8s.io/apimachinery v0.27.3
 	k8s.io/client-go v0.27.3

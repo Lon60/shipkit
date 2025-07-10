@@ -20,12 +20,9 @@ const serviceSchema = z.object({
   serviceName: z.string().min(1, 'Service name is required'),
   image: z.string().min(1, 'Image is required'),
   internalPort: z
-    .union([z.number().int().positive(), z.string()])
-    .optional()
-    .transform((v) => (v === '' ? undefined : v))
-    .refine(
-      (val) => val === undefined || (typeof val === 'number' && val > 0),
-      'Port must be a positive number'
+    .preprocess(
+      (val) => (typeof val === 'number' && !isNaN(val) ? val : undefined),
+      z.number().int().positive().optional()
     ),
   subDomain: z.string().optional(),
   sslEnabled: z.boolean().optional().default(false),
@@ -165,7 +162,12 @@ export function CreateDeploymentWizard({ onSuccess }: CreateDeploymentWizardProp
                   </div>
                   <div className="space-y-1">
                     <Label>Internal Port</Label>
-                    <Input type="number" {...register(`services.${idx}.internalPort` as const)} />
+                    <Input
+                      type="number"
+                      {...register(`services.${idx}.internalPort` as const, {
+                        valueAsNumber: true,
+                      })}
+                    />
                     {errors.services?.[idx]?.internalPort?.message && (
                       <p className="text-xs text-destructive">
                         {errors.services[idx]?.internalPort?.message}

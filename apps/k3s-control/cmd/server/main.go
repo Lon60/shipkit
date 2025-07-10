@@ -23,7 +23,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterK3sControlServiceServer(grpcServer, service.New())
+	pb.RegisterK3SControlServiceServer(grpcServer, service.New())
 	reflection.Register(grpcServer)
 
 	log.Printf("k3s-control gRPC server listening on %s", *addr)

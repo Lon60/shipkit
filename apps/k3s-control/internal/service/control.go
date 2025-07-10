@@ -25,14 +25,14 @@ import (
 )
 
 // Ensure implementation satisfies interface
-var _ pb.K3sControlServiceServer = (*Service)(nil)
+var _ pb.K3SControlServiceServer = (*Service)(nil)
 
 // Service implements K3sControlServiceServer backed by the Kubernetes API.
 // If Kubernetes config cannot be loaded (e.g., during unit tests), it falls back
 // to a noop mode that returns successful ActionResults without touching the
 // cluster, allowing tests to run without a cluster.
 type Service struct {
-	pb.UnimplementedK3sControlServiceServer
+	pb.UnimplementedK3SControlServiceServer
 
 	clientset *kubernetes.Clientset
 	dynamic   dynamic.Interface

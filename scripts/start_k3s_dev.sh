@@ -120,6 +120,11 @@ build_frontend() {
   (cd "$PROJECT_ROOT/apps/frontend" && docker build -f Dockerfile -t frontend:dev .)
 }
 
+build_k3s_control() {
+  echo "[+] Building k3s-control:dev image via docker ..."
+  (cd "$PROJECT_ROOT/apps/k3s-control" && docker build -f Dockerfile -t k3s-control:dev .)
+}
+
 if should_rebuild gateway-api; then
   build_gateway
 elif ! docker image inspect gateway-api:dev >/dev/null 2>&1; then
@@ -132,6 +137,12 @@ elif ! docker image inspect frontend:dev >/dev/null 2>&1; then
   build_frontend
 fi
 
+if should_rebuild k3s-control; then
+  build_k3s_control
+elif ! docker image inspect k3s-control:dev >/dev/null 2>&1; then
+  build_k3s_control
+fi
+
 # -------------------------------------------------------------------------------------------------
 # Import images into cluster
 # -------------------------------------------------------------------------------------------------
@@ -141,6 +152,12 @@ for IMG in gateway-api:dev frontend:dev; do
     k3d image import -c "${CLUSTER_NAME}" "$IMG" || true
   fi
 done
+
+# Import k3s-control image
+if docker image inspect k3s-control:dev >/dev/null 2>&1; then
+  echo "[+] Importing k3s-control:dev into k3d cluster"
+  k3d image import -c "${CLUSTER_NAME}" k3s-control:dev || true
+fi
 
 # -------------------------------------------------------------------------------------------------
 # Deploy full Shipkit stack (Postgres, Gateway, Frontend)
@@ -190,6 +207,9 @@ fi
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/postgres.yaml"
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/gateway-api.yaml"
 kubectl apply -f "$PROJECT_ROOT/k8s/dev/frontend.yaml"
+
+# Apply k3s-control manifest
+kubectl apply -f "$PROJECT_ROOT/k8s/dev/k3s-control.yaml"
 
 # -------------------------------------------------------------------------------------------------
 # Create default Ingress for local development
