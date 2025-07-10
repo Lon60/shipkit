@@ -116,8 +116,40 @@ REMOTE="github.com/lon60/shipkit//k8s/base?ref=main"
 
 kubectl apply -k "$REMOTE"
 
+# Creating default Ingress
+cat <<'EOF' | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shipkit-default
+  namespace: shipkit-system
+  labels:
+    app.kubernetes.io/managed-by: shipkit-installer
+spec:
+  ingressClassName: traefik
+  rules:
+  - http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-api
+            port:
+              number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: shipkit-frontend
+            port:
+              number: 3000
+EOF
+
 # Ensure pods pull latest images
 INFO "Rolling Deployments to ensure newest images are used"
 kubectl -n shipkit-system rollout restart deployment gateway-api shipkit-frontend k3s-control postgres || true
 
-INFO "Shipkit installation complete! Run:\n  kubectl -n shipkit-system get pods,svc" 
+PUBLIC_IP=$(curl -s https://api.ipify.org || echo "<server-ip>")
+INFO "Shipkit installation complete! Access the UI at: http://$PUBLIC_IP or http://localhost"
+INFO "Run: kubectl -n shipkit-system get pods,svc to watch status." 
