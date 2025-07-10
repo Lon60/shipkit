@@ -28,7 +28,7 @@ spec:
       serviceAccountName: gateway-api
       containers:
         - name: gateway-api
-          image: gateway-api:dev
+          image: ghcr.io/lon60/shipkit-gateway-api:latest
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

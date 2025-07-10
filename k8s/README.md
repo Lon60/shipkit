@@ -1,8 +1,14 @@
 # Kubernetes Deployment Guide for Shipkit
 
-This directory will contain the Kubernetes manifests (or Helm chart) that let you run Shipkit on a local **k3d** cluster or on any K3s-compatible environment.
+This directory now uses **Kustomize**. `k8s/base` holds common resources, while `k8s/overlays/dev` tweaks the images for local development (built via `scripts/start_k3s_dev.sh`).
 
-> **Status:** early draft – only Traefik bootstrap is supplied for now. The actual Shipkit workloads will be added once the `k3s-control` micro-service is merged.
+Production installs apply `k8s/base` (or a future `overlays/prod`) through the new installer script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/lon60/shipkit/main/install.sh | bash
+```
+
+Local dev (k3d): `./scripts/start_k3s_dev.sh` – this script now calls `kubectl apply -k k8s/overlays/dev` under the hood.
 
 ---
 
@@ -20,22 +26,7 @@ If you used `scripts/start_k3s_dev.sh` these tools are installed automatically.
 ./scripts/start_k3s_dev.sh        # creates a single-node K3s cluster via k3d
 kubectl get nodes                 # sanity-check
 ```
-
-## 3. Bootstrap Traefik
-
-Traefik acts as the global ingress & load-balancer for Shipkit. The manifest below installs it **without** the default dashboard or ACME; you can tweak the `ConfigMap` later.
-
-```bash
-kubectl apply -f bootstrap/traefik.yaml
-```
-
-Verify:
-
-```bash
-kubectl -n traefik get pods,svc,ingressroutes
-```
-
-## 4. Shipkit components (coming soon)
+## 3. Shipkit components
 
 Once `k3s-control` and the Kubernetes translation in `gateway-api` are ready, we’ll add:
 
@@ -48,7 +39,7 @@ Once `k3s-control` and the Kubernetes translation in `gateway-api` are ready, we
 
 Until then you can keep developing the backend locally (e.g., `./gradlew bootRun`) while the cluster only hosts Traefik.
 
-## 5. Tear down
+## 4. Tear down
 
 ```bash
 k3d cluster delete shipkit

@@ -193,7 +193,7 @@ until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do
 done
 echo " ✔"
 
-echo "[+] Applying dev manifests for Postgres, Gateway-API and Frontend"
+echo "[+] Applying dev manifests via Kustomize overlay"
 # Create / update a ConfigMap with environment variables from .env (if present)
 if [ -f "$PROJECT_ROOT/.env" ]; then
   echo "[+] Creating/updating 'shipkit-env' ConfigMap from .env file"
@@ -204,12 +204,9 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
 else
   echo "[!] No .env file found at $PROJECT_ROOT/.env – skipping ConfigMap creation"
 fi
-kubectl apply -f "$PROJECT_ROOT/k8s/dev/postgres.yaml"
-kubectl apply -f "$PROJECT_ROOT/k8s/dev/gateway-api.yaml"
-kubectl apply -f "$PROJECT_ROOT/k8s/dev/frontend.yaml"
+kubectl apply -k "$PROJECT_ROOT/k8s/overlays/dev"
 
-# Apply k3s-control manifest
-kubectl apply -f "$PROJECT_ROOT/k8s/dev/k3s-control.yaml"
+# k3s-control is included in the overlay resources
 
 # -------------------------------------------------------------------------------------------------
 # Create default Ingress for local development
