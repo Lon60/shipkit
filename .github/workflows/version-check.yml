@@ -40,8 +40,11 @@ jobs:
           NUM_CUR=${CURRENT%%[-+]*}
           IFS='.' read -r MAJOR_BASE MINOR_BASE PATCH_BASE <<< "$NUM_BASE"
           IFS='.' read -r MAJOR_CUR MINOR_CUR PATCH_CUR <<< "$NUM_CUR"
-          if (( MAJOR_CUR < MAJOR_BASE )) || { (( MAJOR_CUR == MAJOR_BASE )) && (( MINOR_CUR < MINOR_BASE )); } || { (( MAJOR_CUR == MAJOR_BASE )) && (( MINOR_CUR == MINOR_BASE )) && (( PATCH_CUR <= PATCH_BASE )); }; then
-            echo "::error::VERSION must be incremented compared to main branch" && exit 1
+          if (( MAJOR_CUR < MAJOR_BASE )) || \
+             { (( MAJOR_CUR == MAJOR_BASE )) && (( MINOR_CUR < MINOR_BASE )); } || \
+             { (( MAJOR_CUR == MAJOR_BASE )) && (( MINOR_CUR == MINOR_BASE )) && (( PATCH_CUR < PATCH_BASE )); } || \
+             { (( MAJOR_CUR == MAJOR_BASE )) && (( MINOR_CUR == MINOR_BASE )) && (( PATCH_CUR == PATCH_BASE )) && [[ "$CURRENT" == "$BASE" ]]; }; then
+            echo "::error::VERSION must be incremented (or have a new suffix) compared to main branch" && exit 1
           fi
 
       - name: Validate versions across projects
