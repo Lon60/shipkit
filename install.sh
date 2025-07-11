@@ -105,6 +105,9 @@ helm upgrade --install traefik traefik/traefik \
   --namespace traefik --create-namespace \
   --set service.type=LoadBalancer \
   --set installCRDs=true \
+  --set "certificatesResolvers.letsencrypt.acme.email=postmaster@example.com" \
+  --set "certificatesResolvers.letsencrypt.acme.storage=/data/acme.json" \
+  --set "certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web" \
   --wait
 
 # ------------------------------------------------------------
