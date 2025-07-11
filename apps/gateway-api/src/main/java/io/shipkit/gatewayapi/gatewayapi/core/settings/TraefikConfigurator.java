@@ -4,7 +4,10 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
+import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.util.Config;
+import io.kubernetes.client.util.PatchUtils;
+import io.kubernetes.client.custom.V1Patch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +30,7 @@ public class TraefikConfigurator {
             V1ConfigMap configMap = coreV1Api.readNamespacedConfigMap(TRAEFIK_CONFIGMAP_NAME, TRAEFIK_NAMESPACE, null);
 
             String traefikYml = configMap.getData().get("traefik.yml");
-            if (traefikYml.contains("email:")) {
+            if (traefikYml != null && traefikYml.contains("email:")) {
                 log.info("ACME email already configured in Traefik ConfigMap. Skipping.");
                 return;
             }
@@ -38,14 +41,28 @@ public class TraefikConfigurator {
             log.info("Updating Traefik ConfigMap with ACME email: {}", email);
             coreV1Api.replaceNamespacedConfigMap(TRAEFIK_CONFIGMAP_NAME, TRAEFIK_NAMESPACE, configMap, null, null, null, null);
 
+            // Restart Traefik to apply the new static configuration
             log.info("Triggering rollout restart for Traefik deployment...");
             var appsV1Api = new AppsV1Api(client);
-            appsV1Api.patchNamespacedDeployment(
-                    TRAEFIK_DEPLOYMENT_NAME,
-                    TRAEFIK_NAMESPACE,
-                    new io.kubernetes.client.custom.V1Patch("{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"kubectl.kubernetes.io/restartedAt\":\"" + java.time.OffsetDateTime.now() + "\"}}}}}", io.kubernetes.client.custom.V1Patch.PATCH_FORMAT_STRATEGIC_MERGE_PATCH),
-                    null, null, null, null, null
+            String patchString = "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"kubectl.kubernetes.io/restartedAt\":\"" + java.time.OffsetDateTime.now() + "\"}}}}}";
+
+            PatchUtils.patch(
+                    V1Deployment.class,
+                    () -> appsV1Api.patchNamespacedDeploymentCall(
+                            TRAEFIK_DEPLOYMENT_NAME,
+                            TRAEFIK_NAMESPACE,
+                            new V1Patch(patchString),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null
+                    ),
+                    V1Patch.PATCH_FORMAT_STRATEGIC_MERGE_PATCH,
+                    client
             );
+
             log.info("Traefik deployment rollout restarted successfully.");
 
         } catch (IOException e) {

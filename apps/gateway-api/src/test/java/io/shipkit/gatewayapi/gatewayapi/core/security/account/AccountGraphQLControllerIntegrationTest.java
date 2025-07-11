@@ -7,6 +7,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.graphql.test.tester.GraphQlTester;
 import org.springframework.graphql.test.tester.HttpGraphQlTester;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -18,11 +20,22 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.TraefikConfigurator;
+
+import static org.mockito.Mockito.mock;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 class AccountGraphQLControllerIntegrationTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public TraefikConfigurator traefikConfigurator() {
+            return mock(TraefikConfigurator.class);
+        }
+    }
 
     @Autowired MockMvc mockMvc;
     @Autowired AccountRepository accountRepository;
