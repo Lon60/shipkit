@@ -100,6 +100,8 @@ kubectl -n shipkit-system create configmap shipkit-env --from-env-file="$ENV_FIL
 helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true
 helm repo update traefik >/dev/null 2>&1
 
+kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
+
 INFO "Creating Traefik static configuration file..."
 cat <<'EOF' | kubectl apply -f -
 apiVersion: v1
