@@ -91,7 +91,7 @@ metadata:
   namespace: traefik
 subjects:
 - kind: ServiceAccount
-  name: default # Assumes gateway-api runs with the default SA in its namespace
+  name: gateway-api
   namespace: shipkit-system
 roleRef:
   kind: Role
