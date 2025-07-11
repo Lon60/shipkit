@@ -136,10 +136,11 @@ helm upgrade --install traefik traefik/traefik \
   --create-namespace \
   --version "v25.0.0" \
   --set service.type=LoadBalancer \
-  --set-file "additionalArguments[0]=--configFile=/config/traefik.yml" \
-  --set "volumes[0].name=config" \
-  --set "volumes[0].mountPath=/config" \
-  --set "volumes[0].type=configmap" \
+  --set "additionalArguments[0]=--configFile=/config/traefik.yml" \
+  --set "deployment.additionalVolumeMounts[0].name=traefik-config-volume" \
+  --set "deployment.additionalVolumeMounts[0].mountPath=/config" \
+  --set "deployment.additionalVolumes[0].name=traefik-config-volume" \
+  --set "deployment.additionalVolumes[0].configMap.name=traefik-config" \
   --wait
 
 INFO "Creating HTTPS redirect middleware..."
