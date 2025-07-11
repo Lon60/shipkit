@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-acme-config
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: traefik
+    shipkit.io/component: ssl
+    traefik.enable: "true"
+data:
+  dynamic.yml: |
+    tls:
+      certificatesResolvers:
+        letsencrypt:
+          acme:
+            email: you@example.com
+            storage: /data/acme.json
+            httpChallenge:
+              entryPoint: web 
