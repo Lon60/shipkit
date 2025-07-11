@@ -49,14 +49,10 @@ public class DomainSetupService {
             entity.setForceSsl(forceSsl);
             repository.save(entity);
 
-            // Certificate issuance now handled by Traefik – skip
-
             applyIngress(domain, sslEnabled, forceSsl);
 
-            // Traefik picks up config automatically – no need to reload
 
         } catch (RuntimeException ex) {
-            // Rollback logic for Traefik ingress if needed
             rollbackIngress(domain);
             throw ex;
         }
@@ -102,7 +98,6 @@ public class DomainSetupService {
 
     private void applyIngress(String domain, boolean sslEnabled, boolean forceSsl) {
         try {
-            // Create or update a standard Kubernetes Ingress that Traefik watches
             String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
 
             io.kubernetes.client.openapi.ApiClient client = io.kubernetes.client.util.Config.defaultClient();
@@ -114,6 +109,15 @@ public class DomainSetupService {
                     .name(ingressName)
                     .namespace(kubernetesNamespace)
                     .putLabelsItem("app.kubernetes.io/managed-by", "shipkit");
+
+            if (sslEnabled) {
+                metadata.putAnnotationsItem("traefik.ingress.kubernetes.io/router.tls.certresolver", "letsencrypt");
+
+                if (forceSsl) {
+                    metadata
+                        .putAnnotationsItem("traefik.ingress.kubernetes.io/router.entrypoints", "websecure");
+                }
+            }
 
             var paths = java.util.List.of(
                     new io.kubernetes.client.openapi.models.V1HTTPIngressPath()
@@ -156,7 +160,6 @@ public class DomainSetupService {
 
             try {
                 networkingApi.readNamespacedIngress(ingressName, kubernetesNamespace, null);
-                // Exists → replace
                 networkingApi.replaceNamespacedIngress(ingressName, kubernetesNamespace, ingress, null, null, null, null);
                 log.info("Updated Ingress '{}' for domain {}", ingressName, domain);
             } catch (io.kubernetes.client.openapi.ApiException ex) {

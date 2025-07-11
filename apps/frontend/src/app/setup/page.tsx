@@ -34,12 +34,16 @@ export default function SetupPage() {
     skip: !statusData?.status?.domainInitialized
   });
 
+  const REDIRECT_DELAY_MS = 5000;
+
   const [setupDomain, { loading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
       const protocol = sslEnabled ? 'https://' : 'http://';
-      toast.success('Domain configured successfully! Redirecting...');
+      toast.success(`Domain configured successfully! Redirecting in ${REDIRECT_DELAY_MS / 1000} seconds...`);
       setIsProcessing(false);
-      window.location.href = `${protocol}${domain}`;
+      setTimeout(() => {
+        window.location.href = `${protocol}${domain}`;
+      }, REDIRECT_DELAY_MS);
     },
     onError: (err) => {
       setIsProcessing(false);
@@ -60,7 +64,10 @@ export default function SetupPage() {
       if (window.location.hostname === fqdn) {
         router.push('/');
       } else {
-        window.location.href = `${protocol}${fqdn}`;
+        // Delay the redirect to allow the ingress to finish provisioning
+        setTimeout(() => {
+          window.location.href = `${protocol}${fqdn}`;
+        }, REDIRECT_DELAY_MS);
       }
     }
   }, [statusData, settingsData, router]);
