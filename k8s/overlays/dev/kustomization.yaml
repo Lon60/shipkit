@@ -2,13 +2,11 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/lon60/shipkit-frontend
-    newName: frontend
-    newTag: dev
+    newName: ghcr.io/lon60/shipkit-frontend
+    newTag: latest
   - name: ghcr.io/lon60/shipkit-gateway-api
-    newName: gateway-api
-    newTag: dev
+    newName: ghcr.io/lon60/shipkit-gateway-api
+    newTag: latest
   - name: ghcr.io/lon60/shipkit-k3s-control
-    newName: k3s-control
-    newTag: dev
-patchesStrategicMerge:
-  - k3s-control-dev-patch.yaml 
+    newName: ghcr.io/lon60/shipkit-k3s-control
+    newTag: latest
