@@ -4,4 +4,3 @@ resources:
   - gateway-api.yaml
   - frontend.yaml
   - k3s-control.yaml 
-  - traefik-acme-config.yaml 

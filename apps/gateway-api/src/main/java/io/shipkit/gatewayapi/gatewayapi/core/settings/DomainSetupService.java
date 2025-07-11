@@ -114,8 +114,7 @@ public class DomainSetupService {
                 metadata.putAnnotationsItem("traefik.ingress.kubernetes.io/router.tls.certresolver", "letsencrypt");
 
                 if (forceSsl) {
-                    metadata
-                        .putAnnotationsItem("traefik.ingress.kubernetes.io/router.entrypoints", "websecure");
+                    metadata.putAnnotationsItem("traefik.ingress.kubernetes.io/router.middlewares", "traefik-shipkit-https-redirect@kubernetescrd");
                 }
             }
 
