@@ -6,6 +6,7 @@ import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
 import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AuthPayloadDTO;
 import io.shipkit.gatewayapi.gatewayapi.core.security.jwt.JwtService;
 import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AccountInfoDTO;
+import io.shipkit.gatewayapi.gatewayapi.core.settings.TraefikConfigurator;
 import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,10 +24,12 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final TraefikConfigurator traefikConfigurator;
 
     @Transactional
     public AuthPayloadDTO register(String email, String password) {
-        if (accountRepository.count() > 0) {
+        boolean isFirstAccount = accountRepository.count() == 0;
+        if (!isFirstAccount) {
             throw new BadRequestException("Registration is disabled. Admin account already exists.");
         }
         
@@ -38,6 +41,11 @@ public class AccountService {
                 .password(passwordEncoder.encode(password))
                 .build();
         Account account =  accountRepository.save(newAccount);
+
+        if (isFirstAccount) {
+            traefikConfigurator.configureAcmeEmail(email);
+        }
+
         String token = jwtService.generateToken(account);
         return new AuthPayloadDTO(token, AccountInfoDTO.from(account));
     }

@@ -83,8 +83,8 @@ ENV_FILE="$SHIPKIT_HOME/.env"
 if [[ ! -f "$ENV_FILE" ]]; then
   INFO "Generating .env file at $ENV_FILE"
   curl -sSL "https://raw.githubusercontent.com/Lon60/shipkit/refs/heads/main/.env.example" -o "$ENV_FILE"
-  JWT=$(openssl rand -hex 32 || head -c 32 /dev/urandom | xxd -p)
-  sed -i -E "s/^JWT_SECRET=.*/JWT_SECRET=$JWT/" "$ENV_FILE"
+  JWT_SECRET=$(openssl rand -base64 32)
+  sed -i -E "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" "$ENV_FILE"
 fi
 
 # Ensure namespace exists before creating ConfigMap
@@ -100,15 +100,58 @@ kubectl -n shipkit-system create configmap shipkit-env --from-env-file="$ENV_FIL
 helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true
 helm repo update traefik >/dev/null 2>&1
 
-INFO "Deploying Traefik"
+INFO "Creating Traefik static configuration file..."
+cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-config
+  namespace: traefik
+data:
+  traefik.yml: |
+    providers:
+      kubernetesCRD: {}
+      kubernetesIngress: {}
+    entryPoints:
+      web:
+        address: ":80"
+      websecure:
+        address: ":443"
+    certificatesResolvers:
+      letsencrypt:
+        acme:
+          # email will be populated by shipkit-gateway-api
+          storage: /data/acme.json
+          caServer: https://acme-v02.api.letsencrypt.org/directory
+          httpChallenge:
+            entryPoint: web
+EOF
+
+
+INFO "Deploying Traefik v3"
 helm upgrade --install traefik traefik/traefik \
-  --namespace traefik --create-namespace \
+  --namespace traefik \
+  --create-namespace \
+  --version "v25.0.0" \
   --set service.type=LoadBalancer \
-  --set installCRDs=true \
-  --set "certificatesResolvers.letsencrypt.acme.email=postmaster@example.com" \
-  --set "certificatesResolvers.letsencrypt.acme.storage=/data/acme.json" \
-  --set "certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web" \
+  --set-file "additionalArguments[0]=--configFile=/config/traefik.yml" \
+  --set "volumes[0].name=config" \
+  --set "volumes[0].mountPath=/config" \
+  --set "volumes[0].type=configmap" \
   --wait
+
+INFO "Creating HTTPS redirect middleware..."
+cat <<'EOF' | kubectl apply -f -
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: shipkit-https-redirect
+  namespace: traefik
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+EOF
 
 # ------------------------------------------------------------
 # 5. Deploy Shipkit workload (latest main branch)

@@ -38,8 +38,8 @@ spec:
               value: k3s-control.shipkit-system.svc.cluster.local
             - name: K3S_CONTROL_PORT
               value: "9998"
-          ports:
-            - containerPort: 8080
+            - name: K3S_CONTROL_PORT
+              value: "9998"
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -69,4 +69,33 @@ subjects:
 roleRef:
   kind: Role
   name: gateway-api-ingress-manager
+  apiGroup: rbac.authorization.k8s.io 
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: traefik-config-manager
+  namespace: traefik
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "update", "patch"]
+  resourceNames: ["traefik-config"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "patch", "watch"]
+  resourceNames: ["traefik"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gateway-api-can-manage-traefik
+  namespace: traefik
+subjects:
+- kind: ServiceAccount
+  name: default # Assumes gateway-api runs with the default SA in its namespace
+  namespace: shipkit-system
+roleRef:
+  kind: Role
+  name: traefik-config-manager
   apiGroup: rbac.authorization.k8s.io 
