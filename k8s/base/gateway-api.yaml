@@ -38,8 +38,6 @@ spec:
               value: k3s-control.shipkit-system.svc.cluster.local
             - name: K3S_CONTROL_PORT
               value: "9998"
-            - name: K3S_CONTROL_PORT
-              value: "9998"
 ---
 apiVersion: v1
 kind: ServiceAccount
