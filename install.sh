@@ -33,8 +33,8 @@ if ! command -v docker >/dev/null 2>&1; then
   apt-get update -qq
   apt-get install -yq ca-certificates curl gnupg lsb-release >/dev/null
   mkdir -p /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg | \
-    gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  curl -fsSL "https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg" \
+    | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   echo \
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
     https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") \
@@ -95,105 +95,33 @@ kubectl -n shipkit-system create configmap shipkit-env --from-env-file="$ENV_FIL
   --dry-run=client -o yaml | kubectl apply -f -
 
 # ------------------------------------------------------------
-# 4. Traefik Ingress controller
+# 4. Deploy Shipkit with Kustomize (production overlay)
 # ------------------------------------------------------------
+INFO "Adding Traefik Helm repo"
 helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true
 helm repo update traefik >/dev/null 2>&1
 
+# Create traefik namespace
 kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
 
-INFO "Creating Traefik static configuration file..."
-cat <<'EOF' | kubectl apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: traefik-config
-  namespace: traefik
-data:
-  traefik.yml: |
-    providers:
-      kubernetesCRD: {}
-      kubernetesIngress: {}
-    entryPoints:
-      web:
-        address: ":80"
-      websecure:
-        address: ":443"
-    certificatesResolvers:
-      letsencrypt:
-        acme:
-          # email will be populated by shipkit-gateway-api
-          storage: /data/acme.json
-          caServer: https://acme-v02.api.letsencrypt.org/directory
-          httpChallenge:
-            entryPoint: web
-EOF
+# Apply Traefik and core Shipkit components with Kustomize
+INFO "Deploying Shipkit components using Kustomize (production overlay)"
+REMOTE="github.com/lon60/shipkit//k8s/overlays/production?ref=main"
 
+# Apply the production overlay
+kubectl apply -k "$REMOTE"
 
-INFO "Deploying Traefik v3"
+# Extract traefik helm values from ConfigMap
+INFO "Deploying Traefik using values from Kustomize configs"
+REMOTE_HELM_VALUES="github.com/lon60/shipkit//k8s/base/traefik/helm-values.yaml?ref=main"
+
+# Install Traefik using the helm values from our repo
 helm upgrade --install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
   --version "v25.0.0" \
-  --set service.type=LoadBalancer \
-  --set "additionalArguments[0]=--configFile=/config/traefik.yml" \
-  --set "deployment.additionalVolumeMounts[0].name=traefik-config-volume" \
-  --set "deployment.additionalVolumeMounts[0].mountPath=/config" \
-  --set "deployment.additionalVolumes[0].name=traefik-config-volume" \
-  --set "deployment.additionalVolumes[0].configMap.name=traefik-config" \
+  -f <(curl -sSL "https://raw.githubusercontent.com/$REMOTE_HELM_VALUES") \
   --wait
-
-INFO "Creating HTTPS redirect middleware..."
-cat <<'EOF' | kubectl apply -f -
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: shipkit-https-redirect
-  namespace: traefik
-spec:
-  redirectScheme:
-    scheme: https
-    permanent: true
-EOF
-
-# ------------------------------------------------------------
-# 5. Deploy Shipkit workload (latest main branch)
-# ------------------------------------------------------------
-INFO "Deploying Shipkit workloads (namespace: shipkit-system)"
-REMOTE="github.com/lon60/shipkit//k8s/base?ref=main"
-
-
-kubectl apply -k "$REMOTE"
-
-# Creating default Ingress
-cat <<'EOF' | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: shipkit-default
-  namespace: shipkit-system
-  labels:
-    app.kubernetes.io/managed-by: shipkit-installer
-spec:
-  ingressClassName: traefik
-  rules:
-  - http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: gateway-api
-            port:
-              number: 8080
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: shipkit-frontend
-            port:
-              number: 3000
-EOF
 
 # Ensure pods pull latest images
 INFO "Rolling Deployments to ensure newest images are used"

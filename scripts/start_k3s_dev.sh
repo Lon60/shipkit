@@ -1,20 +1,30 @@
 #!/usr/bin/env bash
 # scripts/start_k3s_dev.sh
 #
-# Spin up a single-node K3s cluster inside Docker using k3d so that the full
-# "Kubernetes version" of Shipkit can be tested locally on any machine which
-# already has Docker installed (no additional system-level dependencies).
-#
-# After the cluster is created the script prints instructions on how to deploy
-# the Shipkit components.
+# Spin up a single-node K3s cluster inside Docker using k3d for local development.
+# All components (gateway-api, frontend, k3s-control) are built as Docker images
+# and imported into the k3d cluster.
 #
 # Prerequisites: Docker must be running. Everything else (k3d, kubectl) will be
 # installed automatically if missing.
 #
 # Usage:
-#   ./scripts/start_k3s_dev.sh            # creates a cluster called "shipkit"
+#   ./scripts/start_k3s_dev.sh                    # creates a cluster called "shipkit"
 #   CLUSTER_NAME=mycluster ./scripts/start_k3s_dev.sh  # custom name
+#   ./scripts/start_k3s_dev.sh --build gateway-api    # force rebuild specific image
 set -euo pipefail
+
+# Check if Docker is installed and running
+if ! command -v docker >/dev/null 2>&1; then
+  echo "[ERROR] Docker is not installed. Please install Docker first."
+  exit 1
+fi
+
+# Check if Docker daemon is running by testing the socket
+if ! docker info >/dev/null 2>&1; then
+  echo "[ERROR] Docker daemon is not running."
+  exit 1
+fi
 
 CLUSTER_NAME=${CLUSTER_NAME:-shipkit}
 DEV_DOMAIN=${DEV_DOMAIN:-localhost}
@@ -49,9 +59,7 @@ should_rebuild() {
   return 1
 }
 
-# -------------------------------------------------------------------------------------------------
-# Helpers
-# -------------------------------------------------------------------------------------------------
+# Helper functions
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
@@ -68,9 +76,7 @@ install_kubectl() {
   sudo mv kubectl /usr/local/bin/
 }
 
-# -------------------------------------------------------------------------------------------------
 # Install missing dependencies
-# -------------------------------------------------------------------------------------------------
 if ! command_exists k3d; then
   install_k3d
 fi
@@ -79,9 +85,7 @@ if ! command_exists kubectl; then
   install_kubectl
 fi
 
-# -------------------------------------------------------------------------------------------------
-# Create cluster (if it doesn't already exist)
-# -------------------------------------------------------------------------------------------------
+# Create cluster if it doesn't already exist
 if k3d cluster list | grep -q "^${CLUSTER_NAME}\b"; then
   echo "[!] k3d cluster '${CLUSTER_NAME}' already exists – skipping creation."
 else
@@ -95,9 +99,7 @@ else
   echo "[+] k3d cluster '${CLUSTER_NAME}' created successfully."
 fi
 
-# -------------------------------------------------------------------------------------------------
-# Kubeconfig helper
-# -------------------------------------------------------------------------------------------------
+# Setup kubeconfig
 KUBECONFIG_FILE=$(k3d kubeconfig write "${CLUSTER_NAME}")
 export KUBECONFIG="${KUBECONFIG_FILE}"
 
@@ -105,9 +107,7 @@ echo "[i] KUBECONFIG written to ${KUBECONFIG_FILE} and exported for this shell s
 
 AUTO_DEPLOY=${AUTO_DEPLOY:-true}
 
-# ---------------------------------------------------------------------------------------------
 # Build dev images if missing
-# ---------------------------------------------------------------------------------------------
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 build_gateway() {
@@ -143,9 +143,7 @@ elif ! docker image inspect k3s-control:dev >/dev/null 2>&1; then
   build_k3s_control
 fi
 
-# -------------------------------------------------------------------------------------------------
-# Import images into cluster
-# -------------------------------------------------------------------------------------------------
+# Import images into the k3d cluster
 for IMG in gateway-api:dev frontend:dev; do
   if docker image inspect "$IMG" >/dev/null 2>&1; then
     echo "[+] Importing $IMG into k3d cluster"
@@ -153,18 +151,12 @@ for IMG in gateway-api:dev frontend:dev; do
   fi
 done
 
-# Import k3s-control image
 if docker image inspect k3s-control:dev >/dev/null 2>&1; then
   echo "[+] Importing k3s-control:dev into k3d cluster"
   k3d image import -c "${CLUSTER_NAME}" k3s-control:dev || true
 fi
 
-# -------------------------------------------------------------------------------------------------
-# Deploy full Shipkit stack (Postgres, Gateway, Frontend)
-# -------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------
-# Install Traefik via Helm (includes CRDs)
-# -------------------------------------------------------------
+# Deploy full Shipkit stack (Postgres, Gateway, Frontend, Traefik)
 
 # Ensure helm present
 if ! command -v helm >/dev/null 2>&1; then
@@ -176,75 +168,83 @@ fi
 helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true
 helm repo update traefik >/dev/null 2>&1
 
-echo "[+] Installing Traefik via Helm chart"
+# Create .env file if missing, or validate/update JWT_SECRET
+ENV_FILE="$PROJECT_ROOT/.env"
+ENV_EXAMPLE="$PROJECT_ROOT/.env.example"
+
+if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_EXAMPLE" ]; then
+  echo "[+] Creating .env file from .env.example"
+  cp "$ENV_EXAMPLE" "$ENV_FILE"
+  # Generate JWT_SECRET
+  JWT_SECRET=$(openssl rand -base64 32)
+  sed -i -E "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" "$ENV_FILE"
+fi
+
+# Validate JWT_SECRET if .env exists
+if [ -f "$ENV_FILE" ]; then
+  # Check if JWT_SECRET exists and is valid
+  JWT_SECRET_LINE=$(grep "^JWT_SECRET=" "$ENV_FILE" 2>/dev/null || echo "")
+  if [ -z "$JWT_SECRET_LINE" ] || [[ "$JWT_SECRET_LINE" == "JWT_SECRET=" ]] || [[ "$JWT_SECRET_LINE" =~ JWT_SECRET=[[:space:]]*$ ]]; then
+    echo "[!] JWT_SECRET missing or empty in .env - generating a new one"
+    JWT_SECRET=$(openssl rand -base64 32)
+    # Remove existing line if any
+    grep -v "^JWT_SECRET=" "$ENV_FILE" > "${ENV_FILE}.tmp" 2>/dev/null || touch "${ENV_FILE}.tmp"
+    # Add new JWT_SECRET
+    echo "JWT_SECRET=$JWT_SECRET" >> "${ENV_FILE}.tmp"
+    mv "${ENV_FILE}.tmp" "$ENV_FILE"
+    echo "[+] Generated new JWT_SECRET in .env file"
+  fi
+
+  echo "[+] Creating/updating 'shipkit-env' ConfigMap from .env file"
+  # Ensure target namespace exists
+  kubectl create namespace shipkit-system --dry-run=client -o yaml | kubectl apply -f -
+  kubectl -n shipkit-system delete configmap shipkit-env 2>/dev/null || true
+  kubectl -n shipkit-system create configmap shipkit-env --from-env-file="$ENV_FILE"
+else
+  echo "[!] No .env file found at $PROJECT_ROOT/.env – skipping ConfigMap creation"
+fi
+
+# First, create the traefik namespace
+echo "[+] Creating traefik namespace"
+kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
+
+# Install Traefik with our configuration - this installs CRDs first
+echo "[+] Installing Traefik via Helm chart (this installs CRDs)"
 helm upgrade --install traefik traefik/traefik \
-  --namespace traefik --create-namespace \
-  --set service.type=LoadBalancer \
-  --set ports.web.port=80 \
-  --set ports.websecure.port=443 \
+  --namespace traefik \
+  --create-namespace \
+  --version "v25.0.0" \
+  -f "$PROJECT_ROOT/k8s/base/traefik/helm-values.yaml" \
   --set installCRDs=true \
-  --set ingressRoute.dashboard.enabled=false \
   --wait
 
-# Wait for IngressRoute CRD
+# Force install the CRDs if for some reason they weren't installed by Helm
+echo "[+] Ensuring Traefik CRDs are installed"
+kubectl get crd | grep -q "middlewares.traefik.io" || {
+  echo "[!] Traefik CRDs not found, installing manually"
+  TEMP_DIR=$(mktemp -d)
+  curl -s -o "$TEMP_DIR/crds.yaml" https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+  kubectl apply -f "$TEMP_DIR/crds.yaml"
+  rm -rf "$TEMP_DIR"
+}
+
+# Wait for Traefik CRDs to be registered
 echo -n "[i] Waiting for Traefik CRDs to register"
 until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do
   echo -n "."; sleep 2;
 done
 echo " ✔"
 
-echo "[+] Applying dev manifests via Kustomize overlay"
-# Create / update a ConfigMap with environment variables from .env (if present)
-if [ -f "$PROJECT_ROOT/.env" ]; then
-  echo "[+] Creating/updating 'shipkit-env' ConfigMap from .env file"
-  # Ensure target namespace exists (created by postgres manifest, but create first for idempotency)
-  kubectl create namespace shipkit-system --dry-run=client -o yaml | kubectl apply -f -
-  kubectl -n shipkit-system delete configmap shipkit-env 2>/dev/null || true
-  kubectl -n shipkit-system create configmap shipkit-env --from-env-file="$PROJECT_ROOT/.env"
-else
-  echo "[!] No .env file found at $PROJECT_ROOT/.env – skipping ConfigMap creation"
-fi
-kubectl apply -k "$PROJECT_ROOT/k8s/overlays/dev"
+# Apply Traefik configuration (requires CRDs to be installed first)
+echo "[+] Applying Traefik configuration from local k8s directory"
+kubectl apply -k "$PROJECT_ROOT/k8s/base/traefik"
 
-# k3s-control is included in the overlay resources
-
-# -------------------------------------------------------------------------------------------------
-# Create default Ingress for local development
-# -------------------------------------------------------------------------------------------------
-
-echo "[+] Creating default Ingress for http://${DEV_DOMAIN} → / (frontend) and /api (gateway)"
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: shipkit-${DEV_DOMAIN//./-}
-  namespace: shipkit-system
-  labels:
-    app.kubernetes.io/managed-by: shipkit-dev-script
-spec:
-  ingressClassName: traefik
-  rules:
-  - host: ${DEV_DOMAIN}
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: gateway-api
-            port:
-              number: 8080
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: shipkit-frontend
-            port:
-              number: 3000
-EOF
+# Apply the full development overlay with all resources
+echo "[+] Applying development overlay via Kustomize"
+kubectl apply -k "$PROJECT_ROOT/k8s/overlays/development"
 
 echo "[✓] Shipkit dev stack is now running. Access UI at: http://${DEV_DOMAIN}"
-
-# -------------------------------------------------------------------------------------------------
-# Final instructions
-# ------------------------------------------------------------------------------------------------- 
+echo "[i] If you encounter 404 errors:"
+echo "    1. Make sure you use http://${DEV_DOMAIN} "
+echo "    2. Allow a minute for services to initialize"
+echo "    3. Run: kubectl get ingress -n shipkit-system"

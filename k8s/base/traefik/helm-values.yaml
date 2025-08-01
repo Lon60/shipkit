@@ -1,0 +1,15 @@
+# Common Traefik Helm values for both production and development
+service:
+  type: LoadBalancer
+
+additionalArguments:
+  - --configFile=/config/traefik.yml
+
+deployment:
+  additionalVolumeMounts:
+    - name: traefik-config-volume
+      mountPath: /config
+  additionalVolumes:
+    - name: traefik-config-volume
+      configMap:
+        name: traefik-config
