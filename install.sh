@@ -84,7 +84,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   INFO "Generating .env file at $ENV_FILE"
   curl -sSL "https://raw.githubusercontent.com/Lon60/shipkit/refs/heads/main/.env.example" -o "$ENV_FILE"
   JWT_SECRET=$(openssl rand -base64 32)
-  sed -i -E "s/^JWT_SECRET=.*/JWT_SECRET=$JWT_SECRET/" "$ENV_FILE"
+  sed -i -E "s|^JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" "$ENV_FILE"
 fi
 
 # Ensure namespace exists before creating ConfigMap
