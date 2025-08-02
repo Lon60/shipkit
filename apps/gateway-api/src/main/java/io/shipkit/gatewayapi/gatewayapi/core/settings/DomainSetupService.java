@@ -37,24 +37,22 @@ public class DomainSetupService {
                                 boolean sslEnabled,
                                 boolean forceSsl) {
 
+        if (!skipValidation) {
+            validateDomain(domain);
+        }
+
+        PlatformSetting entity = repository.findByFqdn(domain)
+                .orElse(new PlatformSetting());
+        entity.setFqdn(domain);
+        entity.setSslEnabled(sslEnabled);
+        entity.setForceSsl(forceSsl);
+        repository.save(entity);
+
         try {
-            if (!skipValidation) {
-                validateDomain(domain);
-            }
-
-            PlatformSetting entity = repository.findByFqdn(domain)
-                    .orElse(new PlatformSetting());
-            entity.setFqdn(domain);
-            entity.setSslEnabled(sslEnabled);
-            entity.setForceSsl(forceSsl);
-            repository.save(entity);
-
             applyIngress(domain, sslEnabled, forceSsl);
-
-
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             rollbackIngress(domain);
-            throw ex;
+            throw new InternalServerException("Failed to configure Traefik Ingress: " + ex.getMessage());
         }
     }
 
@@ -171,10 +169,20 @@ public class DomainSetupService {
             }
 
             try {
-                networkingApi.deleteNamespacedIngress("shipkit-default", kubernetesNamespace, null, null, null, null, null, null);
-                log.info("Deleted default ingress shipkit-default");
+                networkingApi.deleteNamespacedIngress(
+                        "shipkit-default",
+                        kubernetesNamespace,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        new io.kubernetes.client.openapi.models.V1DeleteOptions());
+                log.info("Deleted default ingress 'shipkit-default'");
             } catch (io.kubernetes.client.openapi.ApiException e) {
-                if (e.getCode() != 404) {
+                if (e.getCode() == 404) {
+                    log.debug("Default ingress 'shipkit-default' already absent");
+                } else {
                     log.error("Failed to delete default ingress, rolling back.", e);
                     throw new InternalServerException("Failed to delete default ingress: " + e.getMessage());
                 }

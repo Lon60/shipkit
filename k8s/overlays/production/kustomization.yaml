@@ -6,15 +6,5 @@ resources:
 - ../../base/ingress
 - ../../base
 
-patches:
-- path: traefik-patch.yaml
-  target:
-    kind: ConfigMap
-    name: traefik-config
-- path: ingress-patch.yaml
-  target:
-    kind: Ingress
-    name: shipkit-default
-
 commonLabels:
   environment: production
