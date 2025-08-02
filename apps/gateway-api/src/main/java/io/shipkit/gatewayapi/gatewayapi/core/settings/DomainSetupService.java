@@ -2,8 +2,9 @@ package io.shipkit.gatewayapi.gatewayapi.core.settings;
 
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.NetworkingV1Api;
-import io.kubernetes.client.openapi.models.V1DeleteOptions;
+import io.kubernetes.client.openapi.models.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -104,12 +105,12 @@ public class DomainSetupService {
         try {
             String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
 
-            io.kubernetes.client.openapi.ApiClient client = defaultClient();
-            io.kubernetes.client.openapi.Configuration.setDefaultApiClient(client);
+            ApiClient client = defaultClient();
+            Configuration.setDefaultApiClient(client);
 
-            var networkingApi = new io.kubernetes.client.openapi.apis.NetworkingV1Api(client);
+            var networkingApi = new NetworkingV1Api(client);
 
-            var metadata = new io.kubernetes.client.openapi.models.V1ObjectMeta()
+            var metadata = new V1ObjectMeta()
                     .name(ingressName)
                     .namespace(kubernetesNamespace)
                     .putLabelsItem("app.kubernetes.io/managed-by", "shipkit");
@@ -123,39 +124,39 @@ public class DomainSetupService {
             }
 
             var paths = java.util.List.of(
-                    new io.kubernetes.client.openapi.models.V1HTTPIngressPath()
+                    new V1HTTPIngressPath()
                             .path("/api")
                             .pathType("Prefix")
-                            .backend(new io.kubernetes.client.openapi.models.V1IngressBackend()
-                                    .service(new io.kubernetes.client.openapi.models.V1IngressServiceBackend()
+                            .backend(new V1IngressBackend()
+                                    .service(new V1IngressServiceBackend()
                                             .name("gateway-api")
-                                            .port(new io.kubernetes.client.openapi.models.V1ServiceBackendPort().number(8080))
+                                            .port(new V1ServiceBackendPort().number(8080))
                                     )
                             ),
-                    new io.kubernetes.client.openapi.models.V1HTTPIngressPath()
+                    new V1HTTPIngressPath()
                             .path("/")
                             .pathType("Prefix")
-                            .backend(new io.kubernetes.client.openapi.models.V1IngressBackend()
-                                    .service(new io.kubernetes.client.openapi.models.V1IngressServiceBackend()
+                            .backend(new V1IngressBackend()
+                                    .service(new V1IngressServiceBackend()
                                             .name("shipkit-frontend")
-                                            .port(new io.kubernetes.client.openapi.models.V1ServiceBackendPort().number(3000))
+                                            .port(new V1ServiceBackendPort().number(3000))
                                     )
                             )
             );
 
-            var rule = new io.kubernetes.client.openapi.models.V1IngressRule()
+            var rule = new V1IngressRule()
                     .host(domain)
-                    .http(new io.kubernetes.client.openapi.models.V1HTTPIngressRuleValue().paths(paths));
+                    .http(new V1HTTPIngressRuleValue().paths(paths));
 
-            var spec = new io.kubernetes.client.openapi.models.V1IngressSpec()
+            var spec = new V1IngressSpec()
                     .addRulesItem(rule)
                     .ingressClassName("traefik");
 
             if (sslEnabled) {
-                spec.addTlsItem(new io.kubernetes.client.openapi.models.V1IngressTLS().addHostsItem(domain));
+                spec.addTlsItem(new V1IngressTLS().addHostsItem(domain));
             }
 
-            var ingress = new io.kubernetes.client.openapi.models.V1Ingress()
+            var ingress = new V1Ingress()
                     .apiVersion("networking.k8s.io/v1")
                     .kind("Ingress")
                     .metadata(metadata)
@@ -165,7 +166,7 @@ public class DomainSetupService {
                 networkingApi.readNamespacedIngress(ingressName, kubernetesNamespace, null);
                 networkingApi.replaceNamespacedIngress(ingressName, kubernetesNamespace, ingress, null, null, null, null);
                 log.info("Updated Ingress '{}' for domain {}", ingressName, domain);
-            } catch (io.kubernetes.client.openapi.ApiException ex) {
+            } catch (ApiException ex) {
                 if (ex.getCode() == 404) {
                     networkingApi.createNamespacedIngress(kubernetesNamespace, ingress, null, null, null, null);
                     log.info("Created Ingress '{}' for domain {}", ingressName, domain);
