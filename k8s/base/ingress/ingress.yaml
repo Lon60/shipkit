@@ -8,24 +8,6 @@ metadata:
 spec:
   ingressClassName: "traefik"
   rules:
-  - host: localhost
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: gateway-api
-            port:
-              number: 8080
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: shipkit-frontend
-            port:
-              number: 3000
-  # Catch-all rule for direct IP access
   - http:
       paths:
       - path: /api
