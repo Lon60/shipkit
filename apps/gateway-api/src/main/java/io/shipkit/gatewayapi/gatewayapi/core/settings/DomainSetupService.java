@@ -170,6 +170,16 @@ public class DomainSetupService {
                 }
             }
 
+            try {
+                networkingApi.deleteNamespacedIngress("shipkit-default", kubernetesNamespace, null, null, null, null, null, null);
+                log.info("Deleted default ingress shipkit-default");
+            } catch (io.kubernetes.client.openapi.ApiException e) {
+                if (e.getCode() != 404) {
+                    log.error("Failed to delete default ingress, rolling back.", e);
+                    throw new InternalServerException("Failed to delete default ingress: " + e.getMessage());
+                }
+            }
+
         } catch (Exception e) {
             throw new InternalServerException("Failed to configure Traefik Ingress: " + e.getMessage());
         }
