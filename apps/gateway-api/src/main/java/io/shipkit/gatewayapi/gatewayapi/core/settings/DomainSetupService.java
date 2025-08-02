@@ -1,5 +1,9 @@
 package io.shipkit.gatewayapi.gatewayapi.core.settings;
 
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.NetworkingV1Api;
+import io.kubernetes.client.openapi.models.V1DeleteOptions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +20,8 @@ import java.time.Duration;
 
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.InternalServerException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException;
+
+import static io.kubernetes.client.util.Config.defaultClient;
 
 @Slf4j
 @Service
@@ -98,7 +104,7 @@ public class DomainSetupService {
         try {
             String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
 
-            io.kubernetes.client.openapi.ApiClient client = io.kubernetes.client.util.Config.defaultClient();
+            io.kubernetes.client.openapi.ApiClient client = defaultClient();
             io.kubernetes.client.openapi.Configuration.setDefaultApiClient(client);
 
             var networkingApi = new io.kubernetes.client.openapi.apis.NetworkingV1Api(client);
@@ -177,9 +183,9 @@ public class DomainSetupService {
                         null,
                         null,
                         null,
-                        new io.kubernetes.client.openapi.models.V1DeleteOptions());
+                        new V1DeleteOptions());
                 log.info("Deleted default ingress 'shipkit-default'");
-            } catch (io.kubernetes.client.openapi.ApiException e) {
+            } catch (ApiException e) {
                 if (e.getCode() == 404) {
                     log.debug("Default ingress 'shipkit-default' already absent");
                 } else {
@@ -197,12 +203,12 @@ public class DomainSetupService {
         try {
             String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
 
-            io.kubernetes.client.openapi.ApiClient client = io.kubernetes.client.util.Config.defaultClient();
-            var networkingApi = new io.kubernetes.client.openapi.apis.NetworkingV1Api(client);
+            ApiClient client = defaultClient();
+            var networkingApi = new NetworkingV1Api(client);
             try {
                 networkingApi.deleteNamespacedIngress(ingressName, kubernetesNamespace, null, null, null, null, null, null);
                 log.info("Rolled back Ingress '{}' due to failure", ingressName);
-            } catch (io.kubernetes.client.openapi.ApiException ex) {
+            } catch (ApiException ex) {
                 if (ex.getCode() != 404) {
                     log.warn("Rollback ingress deletion failed: {}", ex.getMessage());
                 }
