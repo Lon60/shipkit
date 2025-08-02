@@ -18,11 +18,8 @@ if ! command -v k3d &>/dev/null; then
 fi
 
 echo "[+] Deleting k3d cluster '${CLUSTER_NAME}' (if it exists) ..."
-if k3d cluster list | grep -q "^${CLUSTER_NAME}\b"; then
-  k3d cluster delete "${CLUSTER_NAME}"
-else
-  echo "[i] Cluster '${CLUSTER_NAME}' not found, skipping delete."
-fi
+k3d cluster delete "${CLUSTER_NAME}" || \
+    echo "[i] k3d cluster '${CLUSTER_NAME}' could not be deleted (it may not exist)."
 
 # Remove kubeconfig file (k3d stores one per cluster)
 KUBECONFIG_FILE="$HOME/.config/k3d/kubeconfig-${CLUSTER_NAME}.yaml"

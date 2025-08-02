@@ -162,6 +162,7 @@ public class DomainSetupService {
                     .metadata(metadata)
                     .spec(spec);
 
+            log.info("Attempting to delete default ingress 'shipkit-default' in namespace {}", kubernetesNamespace);
             try {
                 networkingApi.readNamespacedIngress(ingressName, kubernetesNamespace, null);
                 networkingApi.replaceNamespacedIngress(ingressName, kubernetesNamespace, ingress, null, null, null, null);
@@ -188,7 +189,7 @@ public class DomainSetupService {
                 log.info("Deleted default ingress 'shipkit-default'");
             } catch (ApiException e) {
                 if (e.getCode() == 404) {
-                    log.debug("Default ingress 'shipkit-default' already absent");
+                    log.info("Default ingress 'shipkit-default' already absent");
                 } else {
                     log.error("Failed to delete default ingress, rolling back.", e);
                     throw new InternalServerException("Failed to delete default ingress: " + e.getMessage());
