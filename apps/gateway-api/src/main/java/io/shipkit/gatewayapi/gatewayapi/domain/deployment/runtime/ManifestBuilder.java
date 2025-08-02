@@ -39,10 +39,14 @@ public class ManifestBuilder {
             if (svc.getSubDomain() != null && !svc.getSubDomain().isBlank()) {
                 String host = svc.getSubDomain() + "." + fqdn;
                 sb.append("apiVersion: traefik.io/v1alpha1\nkind: IngressRoute\nmetadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
-                  .append("spec:\n  entryPoints:\n  - web\n");
+                  
+
+                .append("spec:\n  entryPoints:\n");
 
                 if (svc.isSslEnabled()) {
                     sb.append("  - websecure\n");
+                } else {
+                    sb.append("  - web\n");
                 }
 
                 if (svc.isSslEnabled()) {

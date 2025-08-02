@@ -46,26 +46,24 @@ metadata:
   namespace: shipkit-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   name: gateway-api-ingress-manager
-  namespace: shipkit-system
 rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: gateway-api-ingress-manager-binding
-  namespace: shipkit-system
 subjects:
   - kind: ServiceAccount
     name: gateway-api
     namespace: shipkit-system
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: gateway-api-ingress-manager
   apiGroup: rbac.authorization.k8s.io 
 ---
