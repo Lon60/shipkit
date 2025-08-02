@@ -11,6 +11,18 @@ patches:
   target:
     kind: ConfigMap
     name: traefik-config
+- path: gateway-api-image-patch.yaml
+  target:
+    kind: Deployment
+    name: gateway-api
+- path: frontend-image-patch.yaml
+  target:
+    kind: Deployment
+    name: shipkit-frontend
+- path: k3s-control-image-patch.yaml
+  target:
+    kind: Deployment
+    name: k3s-control
 
 commonLabels:
   environment: development

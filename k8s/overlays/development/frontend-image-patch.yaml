@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipkit-frontend
+  namespace: shipkit-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: frontend
+        image: frontend:dev
+        imagePullPolicy: IfNotPresent
