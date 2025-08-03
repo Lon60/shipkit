@@ -7,10 +7,6 @@ resources:
 - ../../base
 
 patches:
-- path: traefik-patch.yaml
-  target:
-    kind: ConfigMap
-    name: traefik-config
 - path: gateway-api-image-patch.yaml
   target:
     kind: Deployment

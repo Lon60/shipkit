@@ -7,10 +7,10 @@ data:
   traefik.yml: |
     providers:
       kubernetesCRD: {}
-      kubernetesIngress: {}
     entryPoints:
       web:
         address: ":80"
+
       websecure:
         address: ":443"
     certificatesResolvers:

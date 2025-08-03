@@ -95,6 +95,7 @@ else
     --servers 1 --agents 0 \
     --api-port "6550" \
     --port "80:80@loadbalancer" \
+    --port "443:443@loadbalancer" \
 
   echo "[+] k3d cluster '${CLUSTER_NAME}' created successfully."
 fi
