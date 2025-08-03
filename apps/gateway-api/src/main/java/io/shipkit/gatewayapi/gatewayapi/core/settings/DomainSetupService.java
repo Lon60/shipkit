@@ -197,7 +197,7 @@ public class DomainSetupService {
 
         if (sslEnabled && forceSsl) {
             route.put("middlewares", List.of(
-                Map.of("name", "shipkit-https-redirect", "namespace", "traefik")
+                Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)
             ));
         }
 
