@@ -1,12 +1,12 @@
 package io.shipkit.gatewayapi.gatewayapi.core.security.account;
 
+import io.shipkit.gatewayapi.gatewayapi.core.config.TraefikConfigService;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.AlreadyExistsException;
-import io.shipkit.gatewayapi.gatewayapi.core.exceptions.UnauthorizedException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.BadRequestException;
+import io.shipkit.gatewayapi.gatewayapi.core.exceptions.UnauthorizedException;
+import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AccountInfoDTO;
 import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AuthPayloadDTO;
 import io.shipkit.gatewayapi.gatewayapi.core.security.jwt.JwtService;
-import io.shipkit.gatewayapi.gatewayapi.core.security.account.dto.AccountInfoDTO;
-import io.shipkit.gatewayapi.gatewayapi.core.settings.TraefikConfigurator;
 import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,6 +15,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.UUID;
 
 @Service
@@ -24,7 +25,7 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final TraefikConfigurator traefikConfigurator;
+    private final TraefikConfigService traefikConfigService;
 
     @Transactional
     public AuthPayloadDTO register(String email, String password) {
@@ -43,7 +44,7 @@ public class AccountService {
         Account account =  accountRepository.save(newAccount);
 
         if (isFirstAccount) {
-            traefikConfigurator.configureAcmeEmail(email);
+            traefikConfigService.configureAcmeEmail(email);
         }
 
         String token = jwtService.generateToken(account);

@@ -1,5 +1,6 @@
 package io.shipkit.gatewayapi.gatewayapi.core.security.account;
 
+import io.shipkit.gatewayapi.gatewayapi.core.config.TraefikConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import io.shipkit.gatewayapi.gatewayapi.core.settings.TraefikConfigurator;
 
 import static org.mockito.Mockito.mock;
 
@@ -32,8 +32,8 @@ class AccountGraphQLControllerIntegrationTest {
     @TestConfiguration
     static class TestConfig {
         @Bean
-        public TraefikConfigurator traefikConfigurator() {
-            return mock(TraefikConfigurator.class);
+        public TraefikConfigService traefikConfigService() {
+            return mock(TraefikConfigService.class);
         }
     }
 
