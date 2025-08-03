@@ -105,13 +105,6 @@ helm repo update traefik >/dev/null 2>&1
 kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
 
 # Apply Traefik and core Shipkit components with Kustomize
-INFO "Deploying Shipkit components using Kustomize (production overlay)"
-REMOTE="github.com/lon60/shipkit//k8s/overlays/production?ref=main"
-
-# Apply the production overlay
-kubectl apply -k "$REMOTE"
-
-# Extract traefik helm values from ConfigMap
 INFO "Deploying Traefik using values from Kustomize configs"
 REMOTE_HELM_VALUES="github.com/lon60/shipkit//k8s/base/traefik/helm-values.yaml?ref=main"
 
@@ -121,7 +114,22 @@ helm upgrade --install traefik traefik/traefik \
   --create-namespace \
   --version "v25.0.0" \
   -f <(curl -sSL "https://raw.githubusercontent.com/$REMOTE_HELM_VALUES") \
+  --set installCRDs=true \
   --wait
+
+# Wait for Traefik CRDs to be registered
+echo -n "[i] Waiting for Traefik CRDs to register";
+until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do
+  echo -n "."; sleep 2;
+done
+echo " ✔"
+
+INFO "Deploying Shipkit components using Kustomize (production overlay)"
+REMOTE="github.com/lon60/shipkit//k8s/overlays/production?ref=main"
+
+# Apply the production overlay
+kubectl apply -k "$REMOTE"
+
 
 # Ensure pods pull latest images
 INFO "Rolling Deployments to ensure newest images are used"

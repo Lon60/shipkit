@@ -28,7 +28,7 @@ spec:
       containers:
         - name: frontend
           image: ghcr.io/lon60/shipkit-frontend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: shipkit-env

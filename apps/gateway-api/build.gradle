@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'io.shipkit.gateway-api'
-version = '0.1.18-MVP-9'
+version = '0.1.18-MVP-10'
 
 java {
     toolchain {
