@@ -23,7 +23,7 @@ spec:
       containers:
       - name: server
         image: ghcr.io/lon60/shipkit-k3s-control:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 9998
           name: grpc

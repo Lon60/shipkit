@@ -29,7 +29,7 @@ spec:
       containers:
         - name: gateway-api
           image: ghcr.io/lon60/shipkit-gateway-api:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: shipkit-env
