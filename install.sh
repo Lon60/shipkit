@@ -119,10 +119,14 @@ helm upgrade --install traefik traefik/traefik \
 
 # Wait for Traefik CRDs to be registered
 echo -n "[i] Waiting for Traefik CRDs to register";
-until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do
+until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1 && kubectl get crd middlewares.traefik.io >/dev/null 2>&1; do
   echo -n "."; sleep 2;
 done
 echo " ✔"
+
+INFO "Applying Traefik base configuration (Middlewares, etc.)"
+TRAEFIK_BASE="github.com/lon60/shipkit//k8s/base/traefik?ref=main"
+kubectl apply -k "$TRAEFIK_BASE"
 
 INFO "Deploying Shipkit components using Kustomize (production overlay)"
 REMOTE="github.com/lon60/shipkit//k8s/overlays/production?ref=main"
