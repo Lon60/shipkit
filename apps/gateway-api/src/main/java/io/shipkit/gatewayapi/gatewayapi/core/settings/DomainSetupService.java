@@ -112,34 +112,62 @@ public class DomainSetupService {
             Configuration.setDefaultApiClient(client);
             CustomObjectsApi customObjectsApi = new CustomObjectsApi(client);
 
-            // Delete old IngressRoutes
+            // Delete any previous versions (HTTP and HTTPS variants)
             deleteIngressRoute("shipkit-gateway-api", customObjectsApi);
+            deleteIngressRoute("shipkit-gateway-api-https", customObjectsApi);
             deleteIngressRoute("shipkit-frontend", customObjectsApi);
+            deleteIngressRoute("shipkit-frontend-https", customObjectsApi);
 
-            // Create new IngressRoutes
-            String gatewayApiIngressRouteName = "shipkit-gateway-api-" + domain.replace(".", "-");
-            String frontendIngressRouteName = "shipkit-frontend-" + domain.replace(".", "-");
+            String gatewayApiHttpName = "shipkit-gateway-api";
+            String gatewayApiHttpsName = "shipkit-gateway-api-https";
+            String frontendHttpName   = "shipkit-frontend";
+            String frontendHttpsName  = "shipkit-frontend-https";
 
-            Map<String, Object> gatewayApiIngressRoute = createIngressRoute(
-                    gatewayApiIngressRouteName,
+            // --- HTTP routers (always present) ---
+            Map<String, Object> gatewayApiHttpRoute = createIngressRoute(
+                    gatewayApiHttpName,
                     "Host(`" + domain + "`) && PathPrefix(`/api`)",
                     "gateway-api",
                     8080,
-                    sslEnabled,
+                    false,
                     forceSsl
             );
 
-            Map<String, Object> frontendIngressRoute = createIngressRoute(
-                    frontendIngressRouteName,
+            Map<String, Object> frontendHttpRoute = createIngressRoute(
+                    frontendHttpName,
                     "Host(`" + domain + "`) && PathPrefix(`/`)",
                     "shipkit-frontend",
                     3000,
-                    sslEnabled,
+                    false,
                     forceSsl
             );
 
-            createOrUpdateIngressRoute(gatewayApiIngressRouteName, gatewayApiIngressRoute, customObjectsApi);
-            createOrUpdateIngressRoute(frontendIngressRouteName, frontendIngressRoute, customObjectsApi);
+            createOrUpdateIngressRoute(gatewayApiHttpName, gatewayApiHttpRoute, customObjectsApi);
+            createOrUpdateIngressRoute(frontendHttpName, frontendHttpRoute, customObjectsApi);
+
+            // --- HTTPS routers (only if SSL enabled) ---
+            if (sslEnabled) {
+                Map<String, Object> gatewayApiHttpsRoute = createIngressRoute(
+                        gatewayApiHttpsName,
+                        "Host(`" + domain + "`) && PathPrefix(`/api`)",
+                        "gateway-api",
+                        8080,
+                        true,
+                        false // never attach redirect middleware to TLS route
+                );
+
+                Map<String, Object> frontendHttpsRoute = createIngressRoute(
+                        frontendHttpsName,
+                        "Host(`" + domain + "`) && PathPrefix(`/`)",
+                        "shipkit-frontend",
+                        3000,
+                        true,
+                        false
+                );
+
+                createOrUpdateIngressRoute(gatewayApiHttpsName, gatewayApiHttpsRoute, customObjectsApi);
+                createOrUpdateIngressRoute(frontendHttpsName, frontendHttpsRoute, customObjectsApi);
+            }
 
         } catch (Exception e) {
             String errorMessage;
@@ -186,7 +214,7 @@ public class DomainSetupService {
         metadata.put("namespace", kubernetesNamespace);
 
         Map<String, Object> spec = new java.util.HashMap<>();
-        spec.put("entryPoints", List.of("web"));
+        spec.put("entryPoints", sslEnabled ? List.of("websecure") : List.of("web"));
 
         Map<String, Object> route = new java.util.HashMap<>();
         route.put("match", match);
@@ -195,9 +223,9 @@ public class DomainSetupService {
                 Map.of("name", serviceName, "port", port)
         ));
 
-        if (sslEnabled && forceSsl) {
+        if (!sslEnabled && forceSsl) {
             route.put("middlewares", List.of(
-                Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)
+                    Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)
             ));
         }
 
@@ -220,10 +248,10 @@ public class DomainSetupService {
         try {
             ApiClient client = defaultClient();
             CustomObjectsApi customObjectsApi = new CustomObjectsApi(client);
-            String gatewayApiIngressRouteName = "shipkit-gateway-api-" + domain.replace(".", "-");
-            String frontendIngressRouteName = "shipkit-frontend-" + domain.replace(".", "-");
-            deleteIngressRoute(gatewayApiIngressRouteName, customObjectsApi);
-            deleteIngressRoute(frontendIngressRouteName, customObjectsApi);
+            deleteIngressRoute("shipkit-gateway-api", customObjectsApi);
+            deleteIngressRoute("shipkit-gateway-api-https", customObjectsApi);
+            deleteIngressRoute("shipkit-frontend", customObjectsApi);
+            deleteIngressRoute("shipkit-frontend-https", customObjectsApi);
         } catch (Exception e) {
             log.warn("Rollback failed: {}", e.getMessage());
         }
