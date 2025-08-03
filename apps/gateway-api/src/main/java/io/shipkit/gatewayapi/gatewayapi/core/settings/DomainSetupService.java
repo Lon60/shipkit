@@ -3,8 +3,7 @@ package io.shipkit.gatewayapi.gatewayapi.core.settings;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.apis.NetworkingV1Api;
-import io.kubernetes.client.openapi.models.*;
+import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +17,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.InternalServerException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException;
@@ -38,6 +39,10 @@ public class DomainSetupService {
     @Value("${kubernetes.namespace:shipkit-system}")
     private String kubernetesNamespace;
 
+    private final String TRAEFIK_GROUP = "traefik.io";
+    private final String TRAEFIK_VERSION = "v1alpha1";
+    private final String INGRESSROUTE_PLURAL = "ingressroutes";
+
     @Transactional
     public void configureDomain(String domain,
                                 boolean skipValidation,
@@ -56,10 +61,10 @@ public class DomainSetupService {
         repository.save(entity);
 
         try {
-            applyIngress(domain, sslEnabled, forceSsl);
+            applyIngressRoute(domain, sslEnabled, forceSsl);
         } catch (Exception ex) {
-            rollbackIngress(domain);
-            throw new InternalServerException("Failed to configure Traefik Ingress: " + ex.getMessage());
+            rollbackIngressRoute(domain);
+            throw new InternalServerException("Failed to configure Traefik IngressRoute: " + ex.getMessage(), ex);
         }
     }
 
@@ -70,8 +75,8 @@ public class DomainSetupService {
 
         String expectedIp = fetchPublicIp();
         try {
-            InetAddress resolved   = InetAddress.getByName(domain);
-            String      resolvedIp = resolved.getHostAddress();
+            InetAddress resolved = InetAddress.getByName(domain);
+            String resolvedIp = resolved.getHostAddress();
 
             if (!expectedIp.equals(resolvedIp)) {
                 throw new DomainValidationException(
@@ -101,120 +106,124 @@ public class DomainSetupService {
         }
     }
 
-    private void applyIngress(String domain, boolean sslEnabled, boolean forceSsl) {
+    private void applyIngressRoute(String domain, boolean sslEnabled, boolean forceSsl) {
         try {
-            String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
-
             ApiClient client = defaultClient();
             Configuration.setDefaultApiClient(client);
+            CustomObjectsApi customObjectsApi = new CustomObjectsApi(client);
 
-            var networkingApi = new NetworkingV1Api(client);
+            // Delete old IngressRoutes
+            deleteIngressRoute("shipkit-gateway-api", customObjectsApi);
+            deleteIngressRoute("shipkit-frontend", customObjectsApi);
 
-            var metadata = new V1ObjectMeta()
-                    .name(ingressName)
-                    .namespace(kubernetesNamespace)
-                    .putLabelsItem("app.kubernetes.io/managed-by", "shipkit");
+            // Create new IngressRoutes
+            String gatewayApiIngressRouteName = "shipkit-gateway-api-" + domain.replace(".", "-");
+            String frontendIngressRouteName = "shipkit-frontend-" + domain.replace(".", "-");
 
-            if (sslEnabled) {
-                metadata.putAnnotationsItem("traefik.ingress.kubernetes.io/router.tls.certresolver", "letsencrypt");
-
-                if (forceSsl) {
-                    metadata.putAnnotationsItem("traefik.ingress.kubernetes.io/router.middlewares", "traefik-shipkit-https-redirect@kubernetescrd");
-                }
-            }
-
-            var paths = java.util.List.of(
-                    new V1HTTPIngressPath()
-                            .path("/api")
-                            .pathType("Prefix")
-                            .backend(new V1IngressBackend()
-                                    .service(new V1IngressServiceBackend()
-                                            .name("gateway-api")
-                                            .port(new V1ServiceBackendPort().number(8080))
-                                    )
-                            ),
-                    new V1HTTPIngressPath()
-                            .path("/")
-                            .pathType("Prefix")
-                            .backend(new V1IngressBackend()
-                                    .service(new V1IngressServiceBackend()
-                                            .name("shipkit-frontend")
-                                            .port(new V1ServiceBackendPort().number(3000))
-                                    )
-                            )
+            Map<String, Object> gatewayApiIngressRoute = createIngressRoute(
+                    gatewayApiIngressRouteName,
+                    "Host(`" + domain + "`) && PathPrefix(`/api`)",
+                    "gateway-api",
+                    8080,
+                    sslEnabled,
+                    forceSsl
             );
 
-            var rule = new V1IngressRule()
-                    .host(domain)
-                    .http(new V1HTTPIngressRuleValue().paths(paths));
+            Map<String, Object> frontendIngressRoute = createIngressRoute(
+                    frontendIngressRouteName,
+                    "Host(`" + domain + "`) && PathPrefix(`/`)",
+                    "shipkit-frontend",
+                    3000,
+                    sslEnabled,
+                    forceSsl
+            );
 
-            var spec = new V1IngressSpec()
-                    .addRulesItem(rule)
-                    .ingressClassName("traefik");
-
-            if (sslEnabled) {
-                spec.addTlsItem(new V1IngressTLS().addHostsItem(domain));
-            }
-
-            var ingress = new V1Ingress()
-                    .apiVersion("networking.k8s.io/v1")
-                    .kind("Ingress")
-                    .metadata(metadata)
-                    .spec(spec);
-
-            log.info("Attempting to delete default ingress 'shipkit-default' in namespace {}", kubernetesNamespace);
-            try {
-                networkingApi.readNamespacedIngress(ingressName, kubernetesNamespace, null);
-                networkingApi.replaceNamespacedIngress(ingressName, kubernetesNamespace, ingress, null, null, null, null);
-                log.info("Updated Ingress '{}' for domain {}", ingressName, domain);
-            } catch (ApiException ex) {
-                if (ex.getCode() == 404) {
-                    networkingApi.createNamespacedIngress(kubernetesNamespace, ingress, null, null, null, null);
-                    log.info("Created Ingress '{}' for domain {}", ingressName, domain);
-                } else {
-                    throw ex;
-                }
-            }
-
-            try {
-                networkingApi.deleteNamespacedIngress(
-                        "shipkit-default",
-                        kubernetesNamespace,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        new V1DeleteOptions());
-                log.info("Deleted default ingress 'shipkit-default'");
-            } catch (ApiException e) {
-                if (e.getCode() == 404) {
-                    log.info("Default ingress 'shipkit-default' already absent");
-                } else {
-                    log.error("Failed to delete default ingress, rolling back.", e);
-                    throw new InternalServerException("Failed to delete default ingress: " + e.getMessage());
-                }
-            }
+            createOrUpdateIngressRoute(gatewayApiIngressRouteName, gatewayApiIngressRoute, customObjectsApi);
+            createOrUpdateIngressRoute(frontendIngressRouteName, frontendIngressRoute, customObjectsApi);
 
         } catch (Exception e) {
-            throw new InternalServerException("Failed to configure Traefik Ingress: " + e.getMessage());
+            String errorMessage;
+            if (e instanceof ApiException) {
+                ApiException ae = (ApiException) e;
+                errorMessage = String.format("API Error: %s (Code: %d, Body: %s)", ae.getMessage(), ae.getCode(), ae.getResponseBody());
+            } else {
+                errorMessage = e.getMessage();
+            }
+            log.error("Error applying IngressRoute configuration: {}", errorMessage, e);
+            throw new InternalServerException("Failed to configure Traefik IngressRoute: " + errorMessage);
         }
     }
 
-    private void rollbackIngress(String domain) {
+    private void createOrUpdateIngressRoute(String name, Map<String, Object> ingressRoute, CustomObjectsApi api) throws ApiException {
         try {
-            String ingressName = ("shipkit-" + domain).replaceAll("[^.a-z0-9-]", "-").toLowerCase();
-
-            ApiClient client = defaultClient();
-            var networkingApi = new NetworkingV1Api(client);
-            try {
-                networkingApi.deleteNamespacedIngress(ingressName, kubernetesNamespace, null, null, null, null, null, null);
-                log.info("Rolled back Ingress '{}' due to failure", ingressName);
-            } catch (ApiException ex) {
-                if (ex.getCode() != 404) {
-                    log.warn("Rollback ingress deletion failed: {}", ex.getMessage());
-                }
+            api.getNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, name);
+            api.replaceNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, name, ingressRoute, null, null);
+            log.info("Updated IngressRoute '{}'", name);
+        } catch (ApiException e) {
+            if (e.getCode() == 404) {
+                api.createNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, ingressRoute, null, null, null);
+                log.info("Created IngressRoute '{}'", name);
+            } else {
+                throw e;
             }
+        }
+    }
+
+    private void deleteIngressRoute(String name, CustomObjectsApi api) {
+        try {
+            api.deleteNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, name, 0, null, null, null, null);
+            log.info("Deleted IngressRoute '{}'", name);
+        } catch (ApiException e) {
+            if (e.getCode() != 404) {
+                log.warn("Failed to delete IngressRoute '{}'. Code: {}. Response Body: {}", name, e.getCode(), e.getResponseBody(), e);
+            }
+        }
+    }
+
+    private Map<String, Object> createIngressRoute(String name, String match, String serviceName, int port, boolean sslEnabled, boolean forceSsl) {
+        Map<String, Object> metadata = new java.util.HashMap<>();
+        metadata.put("name", name);
+        metadata.put("namespace", kubernetesNamespace);
+
+        Map<String, Object> spec = new java.util.HashMap<>();
+        spec.put("entryPoints", List.of("web"));
+
+        Map<String, Object> route = new java.util.HashMap<>();
+        route.put("match", match);
+        route.put("kind", "Rule");
+        route.put("services", List.of(
+                Map.of("name", serviceName, "port", port)
+        ));
+
+        if (sslEnabled && forceSsl) {
+            route.put("middlewares", List.of(
+                Map.of("name", "shipkit-https-redirect", "namespace", "traefik")
+            ));
+        }
+
+        spec.put("routes", List.of(route));
+
+        if (sslEnabled) {
+            spec.put("tls", Map.of("certResolver", "letsencrypt"));
+        }
+
+        Map<String, Object> ingressRoute = new java.util.HashMap<>();
+        ingressRoute.put("apiVersion", TRAEFIK_GROUP + "/" + TRAEFIK_VERSION);
+        ingressRoute.put("kind", "IngressRoute");
+        ingressRoute.put("metadata", metadata);
+        ingressRoute.put("spec", spec);
+
+        return ingressRoute;
+    }
+
+    private void rollbackIngressRoute(String domain) {
+        try {
+            ApiClient client = defaultClient();
+            CustomObjectsApi customObjectsApi = new CustomObjectsApi(client);
+            String gatewayApiIngressRouteName = "shipkit-gateway-api-" + domain.replace(".", "-");
+            String frontendIngressRouteName = "shipkit-frontend-" + domain.replace(".", "-");
+            deleteIngressRoute(gatewayApiIngressRouteName, customObjectsApi);
+            deleteIngressRoute(frontendIngressRouteName, customObjectsApi);
         } catch (Exception e) {
             log.warn("Rollback failed: {}", e.getMessage());
         }
