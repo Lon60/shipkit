@@ -19,6 +19,10 @@ patches:
   target:
     kind: Deployment
     name: k3s-control
+- path: traefik-staging-ca-patch.yaml
+  target:
+    kind: Secret
+    name: traefik-acme
 
 commonLabels:
   environment: development
