@@ -17,8 +17,11 @@ persistence:
   size: 128Mi
   path: /data
 
-additionalArguments: []
-  
+additionalArguments:
+  - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:-admin@example.com}"
+  - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
+  - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+
 ports:
   web:
     port: 8000
