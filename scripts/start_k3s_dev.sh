@@ -209,6 +209,9 @@ fi
 echo "[+] Creating traefik namespace"
 kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
 
+# Pre-create empty secret so Traefik pods can start successfully
+kubectl -n traefik create secret generic traefik-acme --dry-run=client -o yaml | kubectl apply -f -
+
 # Install Traefik with our configuration - this installs CRDs first
 echo "[+] Installing Traefik via Helm chart (this installs CRDs)"
 helm upgrade --install traefik traefik/traefik \

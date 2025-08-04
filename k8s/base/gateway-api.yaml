@@ -77,6 +77,10 @@ metadata:
   namespace: traefik
 rules:
 - apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "create", "update", "patch"]
+  resourceNames: ["traefik-acme"]
+- apiGroups: [""]
   resources: ["configmaps"]
   verbs: ["get", "update", "patch"]
   resourceNames: ["traefik-config"]

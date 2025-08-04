@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
 - middleware.yaml
+- secret.yaml
 
 commonLabels:
   app.kubernetes.io/component: ingress-controller

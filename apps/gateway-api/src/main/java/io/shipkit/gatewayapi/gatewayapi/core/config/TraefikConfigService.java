@@ -6,7 +6,10 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1ConfigMap;
+import io.kubernetes.client.openapi.models.V1Secret;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import java.nio.charset.StandardCharsets;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,38 +29,54 @@ import static io.kubernetes.client.util.Config.defaultClient;
 public class TraefikConfigService {
 
     private final String TRAEFIK_NAMESPACE = "traefik";
-    private final String TRAEFIK_CONFIGMAP_NAME = "traefik-config";
+    private final String TRAEFIK_SECRET_NAME = "traefik-acme";
     private final String TRAEFIK_DEPLOYMENT_NAME = "traefik";
+    private final String ACME_EMAIL_KEY = "TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL";
 
     public void configureAcmeEmail(String email) {
+        email = email == null ? null : email.trim();
         try {
             ApiClient client = defaultClient();
             CoreV1Api api = new CoreV1Api(client);
 
-            V1ConfigMap configMap = api.readNamespacedConfigMap(TRAEFIK_CONFIGMAP_NAME, TRAEFIK_NAMESPACE, null);
+            if (email == null || email.isBlank()) {
+                log.warn("ACME email is blank – skipping Traefik secret update");
+                return;
+            }
 
-            String currentConfig = configMap.getData().get("traefik.yml");
-            String newConfig = currentConfig;
-
-            if (email != null && !email.isBlank()) {
-                if (currentConfig.contains("email:")) {
-                    newConfig = currentConfig.replaceAll(
-                        "email:.*", "email: \"" + email + "\""
-                    );
+            V1Secret secret;
+            boolean exists = true;
+            try {
+                secret = api.readNamespacedSecret(TRAEFIK_SECRET_NAME, TRAEFIK_NAMESPACE, null);
+            } catch (ApiException ae) {
+                if (ae.getCode() == 404) {
+                    exists = false;
+                    secret = new V1Secret();
+                    V1ObjectMeta metadata = new V1ObjectMeta();
+                    metadata.setName(TRAEFIK_SECRET_NAME);
+                    metadata.setNamespace(TRAEFIK_NAMESPACE);
+                    secret.setMetadata(metadata);
+                    secret.setType("Opaque");
                 } else {
-                    newConfig = currentConfig.replace(
-                        "acme:",
-                        "acme:\n      email: \"" + email + "\""
-                    );
+                    throw ae;
                 }
             }
 
-            Map<String, String> newData = new HashMap<>();
-            newData.put("traefik.yml", newConfig);
-            configMap.setData(newData);
+            Map<String, byte[]> data = secret.getData();
+            if (data == null) {
+                data = new HashMap<>();
+            }
+            data.put(ACME_EMAIL_KEY, email.getBytes(StandardCharsets.UTF_8));
+            secret.setData(data);
 
-            api.replaceNamespacedConfigMap(TRAEFIK_CONFIGMAP_NAME, TRAEFIK_NAMESPACE, configMap, null, null, null, null);
-            log.info("Updated traefik-config with ACME email: {}", email);
+            if (exists) {
+                api.replaceNamespacedSecret(TRAEFIK_SECRET_NAME, TRAEFIK_NAMESPACE, secret, null, null, null, null);
+                log.info("Updated Traefik ACME email to {}", email);
+            } else {
+                api.createNamespacedSecret(TRAEFIK_NAMESPACE, secret, null, null, null, null);
+                log.info("Created Traefik ACME secret with email {}", email);
+            }
+
             
             restartTraefikDeployment(client);
 

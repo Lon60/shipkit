@@ -17,10 +17,20 @@ persistence:
   size: 128Mi
   path: /data
 
-additionalArguments:
-  - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:-admin@example.com}"
-  - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
-  - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+# No additionalArguments – ACME is configured via env vars
+additionalArguments: []
+
+# Expose ACME configuration through environment variables sourced from a Secret.
+# This lets the gateway-api update the email at runtime by patching the Secret.
+envFrom:
+  - secretRef:
+      name: traefik-acme
+env:
+  - name: TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE
+    value: "/data/acme.json"
+  - name: TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT
+    value: "web"
+
 
 ports:
   web:
