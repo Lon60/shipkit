@@ -236,10 +236,6 @@ until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do
 done
 echo " ✔"
 
-# Apply Traefik configuration (requires CRDs to be installed first)
-echo "[+] Applying Traefik configuration from local k8s directory"
-kubectl apply -k "$PROJECT_ROOT/k8s/base/traefik"
-
 # Apply the full development overlay with all resources
 echo "[+] Applying development overlay via Kustomize"
 kubectl apply -k "$PROJECT_ROOT/k8s/overlays/development"

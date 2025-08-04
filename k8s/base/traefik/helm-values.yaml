@@ -2,14 +2,40 @@
 service:
   type: LoadBalancer
 
-additionalArguments:
-  - --configFile=/config/traefik.yml
-
 deployment:
-  additionalVolumeMounts:
-    - name: traefik-config-volume
-      mountPath: /config
-  additionalVolumes:
-    - name: traefik-config-volume
-      configMap:
-        name: traefik-config
+  initContainers:
+    - name: volume-permissions
+      image: busybox:1.31.1
+      command: ["sh", "-c", "touch /data/acme.json && chmod 600 /data/acme.json"]
+      volumeMounts:
+        - name: traefik-acme
+          mountPath: /data
+
+persistence:
+  enabled: true
+  name: traefik-acme
+  size: 128Mi
+  path: /data
+
+additionalArguments: []
+  
+ports:
+  web:
+    port: 8000
+    expose: true
+    exposedPort: 80
+  websecure:
+    port: 8443
+    expose: true
+    exposedPort: 443
+    tls:
+      enabled: true
+
+providers:
+  kubernetesCRD:
+    enabled: true
+    namespaces:
+    - "traefik"
+    - "shipkit-system"
+  kubernetesIngress:
+    enabled: false
