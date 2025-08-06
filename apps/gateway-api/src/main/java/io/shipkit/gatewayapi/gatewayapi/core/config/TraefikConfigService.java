@@ -90,7 +90,7 @@ public class TraefikConfigService {
         String now = OffsetDateTime.now().toString();
 
         Map<String, Object> patch = new HashMap<>();
-        patch.put("op", "replace");
+        patch.put("op", "add");
         patch.put("path", "/spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt");
         patch.put("value", now);
 

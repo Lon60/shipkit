@@ -1,54 +1,63 @@
-# Common Traefik Helm values for both production and development
 service:
+  enabled: true
+  single: true
   type: LoadBalancer
-
-deployment:
-  initContainers:
-    - name: volume-permissions
-      image: busybox:1.31.1
-      command: ["sh", "-c", "touch /data/acme.json && chmod 600 /data/acme.json"]
-      volumeMounts:
-        - name: traefik-acme
-          mountPath: /data
+  annotations: {}
 
 persistence:
   enabled: true
   name: traefik-acme
+  accessMode: ReadWriteOnce
   size: 128Mi
   path: /data
 
-# No additionalArguments – ACME is configured via env vars
 additionalArguments: []
 
-# Expose ACME configuration through environment variables sourced from a Secret.
-# This lets the gateway-api update the email at runtime by patching the Secret.
 envFrom:
   - secretRef:
       name: traefik-acme
-env:
-  - name: TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE
-    value: "/data/acme.json"
-  - name: TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT
-    value: "web"
 
+deployment:
+  initContainers:
+    - name: volume-permissions
+      image: busybox:1.36.1
+      command:
+        - sh
+        - -c
+        - |
+          touch /data/acme.json
+          chmod 600 /data/acme.json
+      volumeMounts:
+        - name: traefik-acme
+          mountPath: /data
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: ""
+      storage: /data/acme.json
+      httpChallenge:
+        entryPoint: web
 
 ports:
   web:
     port: 8000
-    expose: true
+    expose:
+      default: true
     exposedPort: 80
+
   websecure:
     port: 8443
-    expose: true
+    expose:
+      default: true
     exposedPort: 443
     tls:
       enabled: true
+      certResolver: letsencrypt
 
 providers:
   kubernetesCRD:
     enabled: true
-    namespaces:
-    - "traefik"
-    - "shipkit-system"
+    namespaces: ["traefik", "shipkit-system"]
   kubernetesIngress:
     enabled: false

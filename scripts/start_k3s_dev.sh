@@ -217,8 +217,9 @@ echo "[+] Installing Traefik via Helm chart (this installs CRDs)"
 helm upgrade --install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
-  --version "v25.0.0" \
+  --version "v37.0.0" \
   -f "$PROJECT_ROOT/k8s/base/traefik/helm-values.yaml" \
+  -f "$PROJECT_ROOT/k8s/overlays/development/traefik-staging-ca-patch.yaml" \
   --set installCRDs=true \
   --wait
 

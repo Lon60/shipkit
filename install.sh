@@ -115,7 +115,7 @@ REMOTE_HELM_VALUES="github.com/lon60/shipkit//k8s/base/traefik/helm-values.yaml?
 helm upgrade --install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
-  --version "v25.0.0" \
+  --version "v37.0.0" \
   -f <(curl -sSL "https://raw.githubusercontent.com/$REMOTE_HELM_VALUES") \
   --set installCRDs=true \
   --wait
