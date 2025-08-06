@@ -1,4 +1,12 @@
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+tlsStore:
+  default:
+    defaultCertificate:
+      secretName: shipkit-dev-tls
+
+certificatesResolvers: {}
+
+ports:
+  websecure:
+    tls:
+      enabled: true
+      certResolver: ""
