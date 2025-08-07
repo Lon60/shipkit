@@ -1,63 +1,68 @@
 package io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime;
 
+import io.shipkit.gatewayapi.gatewayapi.core.config.K8sTemplateRenderer;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.Deployment;
 import io.shipkit.gatewayapi.gatewayapi.domain.deployment.DeploymentServiceDefinition;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
+@RequiredArgsConstructor
 public class ManifestBuilder {
+
+    private final K8sTemplateRenderer renderer;
 
     public String build(Deployment deployment, List<DeploymentServiceDefinition> services, String fqdn) {
         StringBuilder sb = new StringBuilder();
         String ns = "deploy-" + deployment.getId();
 
-        sb.append("apiVersion: v1\nkind: Namespace\nmetadata:\n  name: ").append(ns).append("\n---\n");
+        Map<String, Object> nsModel = Map.of("namespace", ns);
+        sb.append(renderer.render("namespace.ftl.yaml", nsModel)).append("\n---\n");
 
         for (DeploymentServiceDefinition svc : services) {
             String app = svc.getServiceName().toLowerCase()
-                    .replaceAll("[^a-z0-9-]", "-")        // replace invalid chars
-                    .replaceAll("^-+", "")                 // trim leading hyphens
-                    .replaceAll("-+$", "");               // trim trailing hyphens
+                    .replaceAll("[^a-z0-9-]", "-")
+                    .replaceAll("^-+", "")
+                    .replaceAll("-+$", "");
 
             if (app.isBlank()) {
                 throw new IllegalArgumentException("Service name '" + svc.getServiceName() + "' is not valid after sanitisation");
             }
 
-            int port   = svc.getInternalPort() != null ? svc.getInternalPort() : 80;
+            int port = svc.getInternalPort() != null ? svc.getInternalPort() : 80;
 
-            sb.append("apiVersion: apps/v1\n")
-              .append("kind: Deployment\n")
-              .append("metadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
-              .append("spec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: ").append(app).append("\n  template:\n    metadata:\n      labels:\n        app: ").append(app).append("\n    spec:\n      containers:\n      - name: ").append(app).append("\n        image: ").append(svc.getImage()).append("\n        ports:\n        - containerPort: ").append(port).append("\n")
-              .append("---\n");
+            Map<String, Object> depModel = new HashMap<>();
+            depModel.put("appName", app);
+            depModel.put("namespace", ns);
+            depModel.put("image", svc.getImage());
+            depModel.put("containerPort", port);
+            sb.append(renderer.render("deployment.ftl.yaml", depModel)).append("\n---\n");
 
-            sb.append("apiVersion: v1\nkind: Service\nmetadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
-              .append("spec:\n  selector:\n    app: ").append(app).append("\n  ports:\n  - port: ").append(port).append("\n    targetPort: ").append(port).append("\n    protocol: TCP\n---\n");
+            Map<String, Object> svcModel = new HashMap<>();
+            svcModel.put("appName", app);
+            svcModel.put("namespace", ns);
+            svcModel.put("servicePort", port);
+            svcModel.put("targetPort", port);
+            sb.append(renderer.render("service.ftl.yaml", svcModel)).append("\n---\n");
 
             if (svc.getSubDomain() != null && !svc.getSubDomain().isBlank()) {
                 String host = svc.getSubDomain() + "." + fqdn;
-                sb.append("apiVersion: traefik.io/v1alpha1\nkind: IngressRoute\nmetadata:\n  name: ").append(app).append("\n  namespace: ").append(ns).append("\n")
-                  
-
-                .append("spec:\n  entryPoints:\n");
-
-                if (svc.isSslEnabled()) {
-                    sb.append("  - websecure\n");
-                } else {
-                    sb.append("  - web\n");
-                }
-
-                if (svc.isSslEnabled()) {
-                    sb.append("  tls:\n    certResolver: letsencrypt\n");
-                }
-
-                sb.append("  routes:\n  - match: Host(`").append(host).append("`)\n    kind: Rule\n    services:\n    - name: ").append(app).append("\n      namespace: ").append(ns).append("\n      port: ").append(port).append("\n")
-                  .append("---\n");
+                Map<String, Object> irModel = new HashMap<>();
+                irModel.put("name", app);
+                irModel.put("namespace", ns);
+                irModel.put("sslEnabled", svc.isSslEnabled());
+                irModel.put("match", "Host(`" + host + "`)");
+                irModel.put("serviceName", app);
+                irModel.put("serviceNamespace", ns);
+                irModel.put("servicePort", port);
+                sb.append(renderer.render("ingressroute.ftl.yaml", irModel)).append("\n---\n");
             }
         }
 
         return sb.toString();
     }
-} 
+}
