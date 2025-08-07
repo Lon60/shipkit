@@ -209,13 +209,41 @@ fi
 echo "[+] Creating traefik namespace"
 kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
 
+EXTRA_TRAEFIK_VALUES=""
+
+kubectl -n traefik create secret generic traefik-acme \
+  --from-literal=dummy=1 \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+
+if command -v mkcert >/dev/null 2>&1; then
+  echo "[+] mkcert detected – generating local trusted certificate"
+  mkcert -install >/dev/null 2>&1
+
+  CERT_DIR=$(mktemp -d)
+  DOMAINS=("shipkit.local" "*.shipkit.local")
+  mkcert -cert-file "$CERT_DIR/shipkit.crt" \
+         -key-file  "$CERT_DIR/shipkit.key"  "${DOMAINS[@]}"
+
+  kubectl -n traefik create secret tls shipkit-dev-tls \
+    --cert="$CERT_DIR/shipkit.crt" --key="$CERT_DIR/shipkit.key" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  rm -rf "$CERT_DIR"
+
+  EXTRA_TRAEFIK_VALUES="-f $PROJECT_ROOT/k8s/overlays/development/traefik-staging-ca-patch.yaml"
+  echo "[✓] Local TLS enabled via shipkit-dev-tls"
+else
+  echo "[i] mkcert not found – continuing with Traefik’s fallback certificate"
+fi
+
 # Install Traefik with our configuration - this installs CRDs first
 echo "[+] Installing Traefik via Helm chart (this installs CRDs)"
 helm upgrade --install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
-  --version "v25.0.0" \
+  --version "v37.0.0" \
   -f "$PROJECT_ROOT/k8s/base/traefik/helm-values.yaml" \
+  $EXTRA_TRAEFIK_VALUES \
   --set installCRDs=true \
   --wait
 
@@ -235,10 +263,6 @@ until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do
   echo -n "."; sleep 2;
 done
 echo " ✔"
-
-# Apply Traefik configuration (requires CRDs to be installed first)
-echo "[+] Applying Traefik configuration from local k8s directory"
-kubectl apply -k "$PROJECT_ROOT/k8s/base/traefik"
 
 # Apply the full development overlay with all resources
 echo "[+] Applying development overlay via Kustomize"

@@ -1,0 +1,12 @@
+tlsStore:
+  default:
+    defaultCertificate:
+      secretName: shipkit-dev-tls
+
+certificatesResolvers: {}
+
+ports:
+  websecure:
+    tls:
+      enabled: true
+      certResolver: ""
