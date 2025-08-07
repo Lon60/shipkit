@@ -25,6 +25,7 @@ export default function SetupPage() {
   const [forceSsl, setForceSsl] = useState(true);
   const [domainError, setDomainError] = useState<DomainError | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   
   const { logout } = useAuth();
   const router = useRouter();
@@ -38,12 +39,8 @@ export default function SetupPage() {
 
   const [setupDomain, { loading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
-      const protocol = sslEnabled ? 'https://' : 'http://';
-      toast.success(`Domain configured successfully! Redirecting in ${REDIRECT_DELAY_MS / 1000} seconds...`);
       setIsProcessing(false);
-      setTimeout(() => {
-        window.location.href = `${protocol}${domain}`;
-      }, REDIRECT_DELAY_MS);
+      setCountdown(REDIRECT_DELAY_MS / 1000);
     },
     onError: (err) => {
       setIsProcessing(false);
@@ -71,6 +68,17 @@ export default function SetupPage() {
       }
     }
   }, [statusData, settingsData, router]);
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      const protocol = sslEnabled ? 'https://' : 'http://';
+      window.location.href = `${protocol}${domain}`;
+      return;
+    }
+    const timer = setTimeout(() => setCountdown(prev => (prev !== null ? prev - 1 : null)), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, sslEnabled, domain]);
 
   if (statusLoading || (statusData?.status?.domainInitialized && settingsLoading)) {
     return (
@@ -198,7 +206,7 @@ export default function SetupPage() {
             </div>
           )}
           
-          <UiButton type="submit" disabled={loading || isProcessing} className="w-full">
+          <UiButton type="submit" disabled={loading || isProcessing || countdown !== null} className="w-full">
             {isProcessing ? (
               <>
                 <Clock className="h-4 w-4 mr-2 animate-spin" />
@@ -221,6 +229,11 @@ export default function SetupPage() {
               </>
             )}
           </UiButton>
+          {countdown !== null && (
+            <p className="text-center text-sm text-muted-foreground mt-2">
+              Redirecting in {countdown}...
+            </p>
+          )}
         </form>
         
         {/* Help Section */}

@@ -4,6 +4,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
+import io.shipkit.gatewayapi.gatewayapi.core.config.K8sTemplateRenderer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +36,7 @@ public class DomainSetupService {
             .build();
 
     private final PlatformSettingRepository repository;
+    private final K8sTemplateRenderer renderer;
 
     @Value("${kubernetes.namespace:shipkit-system}")
     private String kubernetesNamespace;
@@ -123,50 +125,73 @@ public class DomainSetupService {
             String frontendHttpName   = "shipkit-frontend";
             String frontendHttpsName  = "shipkit-frontend-https";
 
-            // --- HTTP routers (always present) ---
-            Map<String, Object> gatewayApiHttpRoute = createIngressRoute(
-                    gatewayApiHttpName,
-                    "Host(`" + domain + "`) && PathPrefix(`/api`)",
-                    "gateway-api",
-                    8080,
-                    false,
-                    forceSsl
+            Map<String, Object> commonGatewayModel = Map.of(
+                    "name", gatewayApiHttpName,
+                    "namespace", kubernetesNamespace,
+                    "sslEnabled", false,
+                    "match", "Host(`" + domain + "`) && PathPrefix(`/api`)",
+                    "serviceName", "gateway-api",
+                    "servicePort", 8080,
+                    "serviceNamespace", kubernetesNamespace,
+                    "middlewares", forceSsl ? List.of(Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)) : List.of()
+            );
+            Map<String, Object> commonFrontendModel = Map.of(
+                    "name", frontendHttpName,
+                    "namespace", kubernetesNamespace,
+                    "sslEnabled", false,
+                    "match", "Host(`" + domain + "`) && PathPrefix(`/`)",
+                    "serviceName", "shipkit-frontend",
+                    "servicePort", 3000,
+                    "serviceNamespace", kubernetesNamespace,
+                    "middlewares", forceSsl ? List.of(Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)) : List.of()
             );
 
-            Map<String, Object> frontendHttpRoute = createIngressRoute(
-                    frontendHttpName,
-                    "Host(`" + domain + "`) && PathPrefix(`/`)",
-                    "shipkit-frontend",
-                    3000,
-                    false,
-                    forceSsl
+            String gatewayHttpYaml = renderer.render("ingressroute.ftl.yaml", commonGatewayModel);
+            String frontendHttpYaml = renderer.render("ingressroute.ftl.yaml", commonFrontendModel);
+
+            Map<String, Object> gatewayApiHttpRoute = Map.of(
+                    "apiVersion", TRAEFIK_GROUP + "/" + TRAEFIK_VERSION,
+                    "kind", "IngressRoute",
+                    "metadata", Map.of("name", gatewayApiHttpName, "namespace", kubernetesNamespace),
+                    "spec", Map.of()
+            );
+            Map<String, Object> frontendHttpRoute = Map.of(
+                    "apiVersion", TRAEFIK_GROUP + "/" + TRAEFIK_VERSION,
+                    "kind", "IngressRoute",
+                    "metadata", Map.of("name", frontendHttpName, "namespace", kubernetesNamespace),
+                    "spec", Map.of()
             );
 
-            createOrUpdateIngressRoute(gatewayApiHttpName, gatewayApiHttpRoute, customObjectsApi);
-            createOrUpdateIngressRoute(frontendHttpName, frontendHttpRoute, customObjectsApi);
+            createOrUpdateIngressRoute(gatewayApiHttpName, yamlToMap(gatewayHttpYaml), customObjectsApi);
+            createOrUpdateIngressRoute(frontendHttpName, yamlToMap(frontendHttpYaml), customObjectsApi);
 
-            // --- HTTPS routers (only if SSL enabled) ---
             if (sslEnabled) {
-                Map<String, Object> gatewayApiHttpsRoute = createIngressRoute(
-                        gatewayApiHttpsName,
-                        "Host(`" + domain + "`) && PathPrefix(`/api`)",
-                        "gateway-api",
-                        8080,
-                        true,
-                        false // never attach redirect middleware to TLS route
+                Map<String, Object> gatewayTlsModel = Map.of(
+                        "name", gatewayApiHttpsName,
+                        "namespace", kubernetesNamespace,
+                        "sslEnabled", true,
+                        "match", "Host(`" + domain + "`) && PathPrefix(`/api`)",
+                        "serviceName", "gateway-api",
+                        "servicePort", 8080,
+                        "serviceNamespace", kubernetesNamespace,
+                        "middlewares", List.of()
+                );
+                Map<String, Object> frontendTlsModel = Map.of(
+                        "name", frontendHttpsName,
+                        "namespace", kubernetesNamespace,
+                        "sslEnabled", true,
+                        "match", "Host(`" + domain + "`) && PathPrefix(`/`)",
+                        "serviceName", "shipkit-frontend",
+                        "servicePort", 3000,
+                        "serviceNamespace", kubernetesNamespace,
+                        "middlewares", List.of()
                 );
 
-                Map<String, Object> frontendHttpsRoute = createIngressRoute(
-                        frontendHttpsName,
-                        "Host(`" + domain + "`) && PathPrefix(`/`)",
-                        "shipkit-frontend",
-                        3000,
-                        true,
-                        false
-                );
+                String gatewayHttpsYaml = renderer.render("ingressroute.ftl.yaml", gatewayTlsModel);
+                String frontendHttpsYaml = renderer.render("ingressroute.ftl.yaml", frontendTlsModel);
 
-                createOrUpdateIngressRoute(gatewayApiHttpsName, gatewayApiHttpsRoute, customObjectsApi);
-                createOrUpdateIngressRoute(frontendHttpsName, frontendHttpsRoute, customObjectsApi);
+                createOrUpdateIngressRoute(gatewayApiHttpsName, yamlToMap(gatewayHttpsYaml), customObjectsApi);
+                createOrUpdateIngressRoute(frontendHttpsName, yamlToMap(frontendHttpsYaml), customObjectsApi);
             }
 
         } catch (Exception e) {
@@ -208,40 +233,15 @@ public class DomainSetupService {
         }
     }
 
-    private Map<String, Object> createIngressRoute(String name, String match, String serviceName, int port, boolean sslEnabled, boolean forceSsl) {
-        Map<String, Object> metadata = new java.util.HashMap<>();
-        metadata.put("name", name);
-        metadata.put("namespace", kubernetesNamespace);
-
-        Map<String, Object> spec = new java.util.HashMap<>();
-        spec.put("entryPoints", sslEnabled ? List.of("websecure") : List.of("web"));
-
-        Map<String, Object> route = new java.util.HashMap<>();
-        route.put("match", match);
-        route.put("kind", "Rule");
-        route.put("services", List.of(
-                Map.of("name", serviceName, "port", port)
-        ));
-
-        if (!sslEnabled && forceSsl) {
-            route.put("middlewares", List.of(
-                    Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)
-            ));
+    private Map<String, Object> yamlToMap(String yaml) {
+        org.yaml.snakeyaml.Yaml parser = new org.yaml.snakeyaml.Yaml();
+        Object obj = parser.load(yaml);
+        if (!(obj instanceof Map)) {
+            throw new IllegalStateException("Rendered YAML is not a map");
         }
-
-        spec.put("routes", List.of(route));
-
-        if (sslEnabled) {
-            spec.put("tls", Map.of("certResolver", "letsencrypt"));
-        }
-
-        Map<String, Object> ingressRoute = new java.util.HashMap<>();
-        ingressRoute.put("apiVersion", TRAEFIK_GROUP + "/" + TRAEFIK_VERSION);
-        ingressRoute.put("kind", "IngressRoute");
-        ingressRoute.put("metadata", metadata);
-        ingressRoute.put("spec", spec);
-
-        return ingressRoute;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = (Map<String, Object>) obj;
+        return map;
     }
 
     private void rollbackIngressRoute(String domain) {

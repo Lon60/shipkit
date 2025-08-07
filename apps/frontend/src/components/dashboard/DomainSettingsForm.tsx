@@ -22,6 +22,8 @@ export function DomainSettingsForm() {
   const [forceSsl, setForceSsl] = useState(true);
   const [domainError, setDomainError] = useState<DomainError | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const REDIRECT_DELAY_SECONDS = 5;
 
   const { data, loading: queryLoading, error: queryError } = useQuery<{ platformSettings: PlatformSetting }>(PLATFORM_SETTINGS);
 
@@ -33,10 +35,22 @@ export function DomainSettingsForm() {
     }
   }, [data]);
 
+  // Countdown redirect effect
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      const protocol = sslEnabled ? 'https://' : 'http://';
+      window.location.href = `${protocol}${domain}`;
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((prev) => (prev !== null ? prev - 1 : null)), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, sslEnabled, domain]);
+
   const [setupDomain, { loading: mutationLoading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
-      toast.success('Domain configured successfully!');
       setIsProcessing(false);
+      setCountdown(REDIRECT_DELAY_SECONDS);
     },
     onError: (err) => {
       setIsProcessing(false);
@@ -171,7 +185,7 @@ export function DomainSettingsForm() {
             </div>
           )}
 
-          <UiButton type="submit" disabled={mutationLoading || isProcessing} className="w-full">
+          <UiButton type="submit" disabled={mutationLoading || isProcessing || countdown !== null} className="w-full">
             {isProcessing ? (
               <>
                 <Clock className="h-4 w-4 mr-2 animate-spin" />
@@ -189,6 +203,11 @@ export function DomainSettingsForm() {
               </>
             )}
           </UiButton>
+            {countdown !== null && (
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Redirecting in {countdown}...
+              </p>
+            )}
         </form>
       </CardContent>
     </Card>

@@ -22,6 +22,8 @@ export function DomainConfig() {
   const [forceSsl, setForceSsl] = useState(true);
   const [domainError, setDomainError] = useState<DomainError | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const REDIRECT_DELAY_SECONDS = 5;
 
   const { data, loading } = useQuery<{ platformSettings: PlatformSetting }>(PLATFORM_SETTINGS);
 
@@ -33,10 +35,21 @@ export function DomainConfig() {
     }
   }, [data]);
 
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      const protocol = sslEnabled ? 'https://' : 'http://';
+      window.location.href = `${protocol}${domain}`;
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((prev) => (prev !== null ? prev - 1 : null)), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, sslEnabled, domain]);
+
   const [setupDomain, { loading: mutationLoading }] = useMutation(SETUP_DOMAIN, {
     onCompleted: () => {
-      toast.success('Domain configured successfully!');
       setIsProcessing(false);
+      setCountdown(REDIRECT_DELAY_SECONDS);
     },
     onError: (err) => {
       setIsProcessing(false);
@@ -158,7 +171,7 @@ export function DomainConfig() {
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={mutationLoading || isProcessing}>
+            <Button type="submit" disabled={mutationLoading || isProcessing || countdown !== null}>
               {isProcessing ? (
                 <>
                   <LoadingSpinner size="sm" className="mr-2" />
@@ -168,6 +181,11 @@ export function DomainConfig() {
                 'Save Domain'
               )}
             </Button>
+              {countdown !== null && (
+                <p className="text-center text-xs text-muted-foreground mt-2 w-full">
+                  Redirecting in {countdown}...
+                </p>
+              )}
           </div>
         </form>
       </CardContent>

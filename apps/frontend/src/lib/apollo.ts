@@ -2,6 +2,7 @@ import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/clien
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { ApolloLink, Observable } from '@apollo/client';
+import { notifyBackendStarting } from '@/lib/startup';
 import { trpcClient } from '@/utils/trpc';
 
 interface JWTPayload {
@@ -133,7 +134,7 @@ const authLink = setContext((_, { headers }) => {
 
 const errorLink = onError(({ graphQLErrors, networkError }) => {
   if (graphQLErrors) {
-          graphQLErrors.forEach(({ message, locations, path }) => {
+    graphQLErrors.forEach(({ message, locations, path }) => {
         console.error(
           `GraphQL error: Message: ${message}, Location: ${JSON.stringify(locations)}, Path: ${JSON.stringify(path)}`
         );
@@ -155,6 +156,18 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
+    }
+
+    // Handle backend starting (502/503) – redirect to /starting and poll
+    // Apollo's networkError is of type Error; attempt to read a Response when available.
+    let status: number | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const maybeResponse = (networkError as unknown as { status?: number; response?: { status?: number } | undefined } | undefined);
+    if (maybeResponse) {
+      status = maybeResponse.status ?? maybeResponse.response?.status;
+    }
+    if (status === 502 || status === 503) {
+      notifyBackendStarting(status);
     }
   }
 });
