@@ -11,8 +11,7 @@ spec:
     - web
 </#if>
 <#if sslEnabled>
-  tls:
-    certResolver: letsencrypt
+  tls: {}
 </#if>
   routes:
     - match: ${match}
