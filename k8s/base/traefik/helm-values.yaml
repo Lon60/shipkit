@@ -58,6 +58,5 @@ ports:
 providers:
   kubernetesCRD:
     enabled: true
-    namespaces: ["traefik", "shipkit-system"]
   kubernetesIngress:
     enabled: false
