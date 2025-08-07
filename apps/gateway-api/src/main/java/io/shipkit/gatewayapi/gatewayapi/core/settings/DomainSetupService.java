@@ -125,6 +125,9 @@ public class DomainSetupService {
             String frontendHttpName   = "shipkit-frontend";
             String frontendHttpsName  = "shipkit-frontend-https";
 
+            List<Map<String, Object>> redirectMw = List.of(Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace));
+            List<Map<String, Object>> httpMiddlewares = (!sslEnabled && forceSsl) ? redirectMw : List.of();
+
             Map<String, Object> commonGatewayModel = Map.of(
                     "name", gatewayApiHttpName,
                     "namespace", kubernetesNamespace,
@@ -133,7 +136,7 @@ public class DomainSetupService {
                     "serviceName", "gateway-api",
                     "servicePort", 8080,
                     "serviceNamespace", kubernetesNamespace,
-                    "middlewares", forceSsl ? List.of(Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)) : List.of()
+                    "middlewares", httpMiddlewares
             );
             Map<String, Object> commonFrontendModel = Map.of(
                     "name", frontendHttpName,
@@ -143,7 +146,7 @@ public class DomainSetupService {
                     "serviceName", "shipkit-frontend",
                     "servicePort", 3000,
                     "serviceNamespace", kubernetesNamespace,
-                    "middlewares", forceSsl ? List.of(Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace)) : List.of()
+                    "middlewares", httpMiddlewares
             );
 
             String gatewayHttpYaml = renderer.render("ingressroute.ftl.yaml", commonGatewayModel);
