@@ -64,20 +64,46 @@ jobs:
       - name: Generate New Contributors section
         id: contributors
         run: |
-          if [[ -z "${{ steps.prev_tag.outputs.tag }}" ]]; then
-            RANGE=""
+          set -euo pipefail
+          PREV_TAG='${{ steps.prev_tag.outputs.tag }}'
+
+          # Collect authors before previous tag (by email) to determine who is "new"
+          if [[ -n "$PREV_TAG" ]]; then
+            mapfile -t PREV_AUTHORS < <(git log "$PREV_TAG" --format='%ae|%an' | sort -u)
           else
-            RANGE="${{ steps.prev_tag.outputs.tag }}..${{ github.event.pull_request.merge_commit_sha }}"
+            PREV_AUTHORS=()
           fi
-          CONTRIBUTORS=$(git log $RANGE --format='%aN <%aE>' | sort -u)
-          if [[ -z "$CONTRIBUTORS" ]]; then
-            CONTRIBUTORS="None"
+
+          # Collect current range authors (since prev tag to this merge commit)
+          RANGE="${PREV_TAG:+$PREV_TAG..}${{ github.event.pull_request.merge_commit_sha }}"
+          mapfile -t CURR_AUTHORS < <(git log $RANGE --format='%ae|%an' | sort -u || true)
+
+          # Build a set of previous emails for quick lookup
+          PREV_EMAILS=$(printf '%s\n' "${PREV_AUTHORS[@]}" | cut -d'|' -f1 | sort -u || true)
+
+          NEW_LIST=()
+          for entry in "${CURR_AUTHORS[@]}"; do
+            email="${entry%%|*}"
+            name="${entry#*|}"
+            # Skip bots and CI
+            if [[ "$name" =~ \[bot\]$ ]] || [[ "$email" == "actions@github.com" ]] || [[ "$name" == "dependabot" ]] || [[ "$name" == "dependabot[bot]" ]]; then
+              continue
+            fi
+            # First-time contributor if email not seen before previous tag
+            if ! printf '%s\n' "$PREV_EMAILS" | grep -Fxq "$email"; then
+              NEW_LIST+=("- $name <$email>")
+            fi
+          done
+
+          if [[ ${#NEW_LIST[@]} -eq 0 ]]; then
+            echo "text=None" >> $GITHUB_OUTPUT
           else
-            CONTRIBUTORS=$(echo "$CONTRIBUTORS" | while read line; do echo "- $line"; done)
+            {
+              echo "text<<EOF"
+              printf '%s\n' "${NEW_LIST[@]}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           fi
-          echo "text<<EOF" >> $GITHUB_OUTPUT
-          echo "$CONTRIBUTORS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Set lowercase owner
         id: owner
