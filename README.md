@@ -19,3 +19,13 @@ curl -sSL https://raw.githubusercontent.com/lon60/shipkit/main/install.sh | bash
 ```
 
 </div>
+
+## Local E2E Test (k3d)
+
+Run the full stack and verify end-to-end:
+
+```bash
+scripts/e2e/run_e2e.sh
+```
+
+See `e2e/README.md` for options (custom `DOMAIN`, ACME staging, etc.).
