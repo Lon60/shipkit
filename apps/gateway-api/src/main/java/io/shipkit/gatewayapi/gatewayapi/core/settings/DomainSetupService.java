@@ -169,26 +169,27 @@ public class DomainSetupService {
             createOrUpdateIngressRoute(frontendHttpName, yamlToMap(frontendHttpYaml), customObjectsApi);
 
             if (sslEnabled) {
-                Map<String, Object> gatewayTlsModel = Map.of(
-                        "name", gatewayApiHttpsName,
-                        "namespace", kubernetesNamespace,
-                        "sslEnabled", true,
-                        "match", "Host(`" + domain + "`) && PathPrefix(`/api`)",
-                        "serviceName", "gateway-api",
-                        "servicePort", 8080,
-                        "serviceNamespace", kubernetesNamespace,
-                        "middlewares", List.of()
-                );
-                Map<String, Object> frontendTlsModel = Map.of(
-                        "name", frontendHttpsName,
-                        "namespace", kubernetesNamespace,
-                        "sslEnabled", true,
-                        "match", "Host(`" + domain + "`) && PathPrefix(`/`)",
-                        "serviceName", "shipkit-frontend",
-                        "servicePort", 3000,
-                        "serviceNamespace", kubernetesNamespace,
-                        "middlewares", List.of()
-                );
+                Map<String, Object> gatewayTlsModel = new java.util.HashMap<>();
+                gatewayTlsModel.put("name", gatewayApiHttpsName);
+                gatewayTlsModel.put("namespace", kubernetesNamespace);
+                gatewayTlsModel.put("sslEnabled", true);
+                gatewayTlsModel.put("match", "Host(`" + domain + "`) && PathPrefix(`/api`)");
+                gatewayTlsModel.put("serviceName", "gateway-api");
+                gatewayTlsModel.put("servicePort", 8080);
+                gatewayTlsModel.put("serviceNamespace", kubernetesNamespace);
+                gatewayTlsModel.put("middlewares", List.of());
+                gatewayTlsModel.put("certResolver", "letsencrypt");
+
+                Map<String, Object> frontendTlsModel = new java.util.HashMap<>();
+                frontendTlsModel.put("name", frontendHttpsName);
+                frontendTlsModel.put("namespace", kubernetesNamespace);
+                frontendTlsModel.put("sslEnabled", true);
+                frontendTlsModel.put("match", "Host(`" + domain + "`) && PathPrefix(`/`)");
+                frontendTlsModel.put("serviceName", "shipkit-frontend");
+                frontendTlsModel.put("servicePort", 3000);
+                frontendTlsModel.put("serviceNamespace", kubernetesNamespace);
+                frontendTlsModel.put("middlewares", List.of());
+                frontendTlsModel.put("certResolver", "letsencrypt");
 
                 String gatewayHttpsYaml = renderer.render("ingressroute.ftl.yaml", gatewayTlsModel);
                 String frontendHttpsYaml = renderer.render("ingressroute.ftl.yaml", frontendTlsModel);

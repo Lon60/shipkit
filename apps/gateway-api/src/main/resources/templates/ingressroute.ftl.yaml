@@ -12,7 +12,9 @@ spec:
 </#if>
 <#if sslEnabled>
   tls:
-    certResolver: letsencrypt
+  <#if certResolver?? && (certResolver?length > 0)>
+    certResolver: ${certResolver}
+  </#if>
 </#if>
   routes:
     - match: ${match}
