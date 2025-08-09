@@ -6,5 +6,7 @@ resources:
 - ../../base/ingress
 - ../../base
 
-commonLabels:
-  environment: production
+labels:
+- pairs:
+    environment: production
+  includeSelectors: false
