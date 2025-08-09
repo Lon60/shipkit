@@ -34,7 +34,6 @@ deployment:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: ""
       storage: /data/acme.json
       httpChallenge:
         entryPoint: web
