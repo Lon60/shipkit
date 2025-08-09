@@ -126,7 +126,7 @@ public class DomainSetupService {
             String frontendHttpsName  = "shipkit-frontend-https";
 
             List<Map<String, Object>> redirectMw = List.of(Map.of("name", "shipkit-https-redirect", "namespace", kubernetesNamespace));
-            List<Map<String, Object>> httpMiddlewares = (!sslEnabled && forceSsl) ? redirectMw : List.of();
+            List<Map<String, Object>> httpMiddlewares = (sslEnabled && forceSsl) ? redirectMw : List.of();
 
             Map<String, Object> commonGatewayModel = Map.of(
                     "name", gatewayApiHttpName,
