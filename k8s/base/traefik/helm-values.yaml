@@ -52,7 +52,6 @@ ports:
     exposedPort: 443
     tls:
       enabled: true
-      certResolver: letsencrypt
 
 providers:
   kubernetesCRD:

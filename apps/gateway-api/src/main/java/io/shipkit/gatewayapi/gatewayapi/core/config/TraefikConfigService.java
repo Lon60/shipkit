@@ -1,6 +1,5 @@
 package io.shipkit.gatewayapi.gatewayapi.core.config;
 
-import com.google.gson.Gson;
 import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -34,6 +33,7 @@ public class TraefikConfigService {
     private final String ACME_EMAIL_KEY = "TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL";
     private final String ACME_STORAGE_KEY = "TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE";
     private final String ACME_HTTPCHALLENGE_ENTRYPOINT_KEY = "TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT";
+    private final String ACME_ENABLED_KEY = "TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME";
 
     public void configureAcmeEmail(String email) {
         email = email == null ? null : email.trim();
@@ -69,6 +69,7 @@ public class TraefikConfigService {
                 data = new HashMap<>();
             }
             data.put(ACME_EMAIL_KEY, email.getBytes(StandardCharsets.UTF_8));
+            data.put(ACME_ENABLED_KEY, "true".getBytes(StandardCharsets.UTF_8));
             data.put(ACME_STORAGE_KEY, "/data/acme.json".getBytes(StandardCharsets.UTF_8));
             data.put(ACME_HTTPCHALLENGE_ENTRYPOINT_KEY, "web".getBytes(StandardCharsets.UTF_8));
             secret.setData(data);
@@ -93,18 +94,25 @@ public class TraefikConfigService {
         AppsV1Api appsApi = new AppsV1Api(client);
         String now = OffsetDateTime.now().toString();
 
-        var deployment = appsApi.readNamespacedDeployment(TRAEFIK_DEPLOYMENT_NAME, TRAEFIK_NAMESPACE, null);
-        var podTemplate = deployment.getSpec().getTemplate();
-        if (podTemplate.getMetadata() == null) {
-            podTemplate.setMetadata(new io.kubernetes.client.openapi.models.V1ObjectMeta());
-        }
-        Map<String, String> annotations = podTemplate.getMetadata().getAnnotations();
-        if (annotations == null) {
-            annotations = new HashMap<>();
-            podTemplate.getMetadata().setAnnotations(annotations);
-        }
-        annotations.put("kubectl.kubernetes.io/restartedAt", now);
-        appsApi.replaceNamespacedDeployment(TRAEFIK_DEPLOYMENT_NAME, TRAEFIK_NAMESPACE, deployment, null, null, null, null);
+        Map<String, Object> patch = new HashMap<>();
+        patch.put("op", "add");
+        patch.put("path", "/spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt");
+        patch.put("value", now);
+
+        List<Map<String, Object>> patchList = new ArrayList<>();
+        patchList.add(patch);
+
+        String patchJson = new com.google.gson.Gson().toJson(patchList);
+        appsApi.patchNamespacedDeployment(
+                TRAEFIK_DEPLOYMENT_NAME,
+                TRAEFIK_NAMESPACE,
+                new V1Patch(patchJson),
+                null,
+                null,
+                null,
+                null,
+                null
+        );
         log.info("Triggered a rolling restart of the Traefik deployment.");
     }
 }
