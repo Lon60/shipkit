@@ -82,11 +82,50 @@ public class TraefikConfigService {
                 log.info("Created Traefik ACME secret with email {}", email);
             }
 
-            
+            // Remove any conflicting CLI flags that would override env-driven ACME config
+            sanitizeTraefikArgs(client);
+
+            // Restart Traefik so it picks up updated environment configuration
             restartTraefikDeployment(client);
 
         } catch (IOException | ApiException e) {
             log.error("Failed to update Traefik config", e);
+        }
+    }
+
+    private void sanitizeTraefikArgs(ApiClient client) throws ApiException {
+        AppsV1Api appsApi = new AppsV1Api(client);
+        var deployment = appsApi.readNamespacedDeployment(TRAEFIK_DEPLOYMENT_NAME, TRAEFIK_NAMESPACE, null);
+        var podSpec = deployment.getSpec().getTemplate().getSpec();
+        if (podSpec == null || podSpec.getContainers() == null || podSpec.getContainers().isEmpty()) {
+            return;
+        }
+        var container = podSpec.getContainers().get(0);
+        List<String> args = container.getArgs();
+        if (args == null || args.isEmpty()) {
+            return;
+        }
+        List<String> filtered = new ArrayList<>();
+        for (String a : args) {
+            if (a == null) continue;
+            if (a.startsWith("--certificatesresolvers.letsencrypt.acme.email")) continue;
+            if (a.startsWith("--entryPoints.websecure.http.tls.certResolver")) continue;
+            filtered.add(a);
+        }
+        if (!filtered.equals(args)) {
+            String valueJson = new com.google.gson.Gson().toJson(filtered);
+            String patchJson = "[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/args\",\"value\":" + valueJson + "}]";
+            appsApi.patchNamespacedDeployment(
+                    TRAEFIK_DEPLOYMENT_NAME,
+                    TRAEFIK_NAMESPACE,
+                    new V1Patch(patchJson),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+            log.info("Sanitized Traefik container args to remove conflicting ACME/certResolver flags");
         }
     }
 

@@ -242,6 +242,7 @@ helm upgrade --install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
   --version "v37.0.0" \
+  --reset-values \
   -f "$PROJECT_ROOT/k8s/base/traefik/helm-values.yaml" \
   $EXTRA_TRAEFIK_VALUES \
   --set installCRDs=true \

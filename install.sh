@@ -108,15 +108,16 @@ kubectl create namespace traefik --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n traefik create secret generic traefik-acme --dry-run=client -o yaml | kubectl apply -f -
 
 # Apply Traefik and core Shipkit components with Kustomize
-INFO "Deploying Traefik using values from Kustomize configs"
-REMOTE_HELM_VALUES="github.com/lon60/shipkit//k8s/base/traefik/helm-values.yaml?ref=main"
+INFO "Deploying Traefik using values from repo"
+REMOTE_HELM_VALUES_RAW="https://raw.githubusercontent.com/Lon60/shipkit/main/k8s/base/traefik/helm-values.yaml"
 
 # Install Traefik using the helm values from our repo
 helm upgrade --install traefik traefik/traefik \
   --namespace traefik \
   --create-namespace \
   --version "v37.0.0" \
-  -f <(curl -sSL "https://raw.githubusercontent.com/$REMOTE_HELM_VALUES") \
+  --reset-values \
+  -f "$REMOTE_HELM_VALUES_RAW" \
   --set installCRDs=true \
   --wait
 
