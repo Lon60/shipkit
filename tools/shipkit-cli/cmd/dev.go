@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	inst "shipkit-cli/internal/install"
 
 	"github.com/spf13/cobra"
 )
@@ -132,176 +132,6 @@ func importImages(cluster string) error {
 	return nil
 }
 
-func ensureHelm() error {
-	if _, err := exec.LookPath("helm"); err == nil {
-		return nil
-	}
-	fmt.Println("[+] Installing Helm (v3) …")
-	return execCmd("bash", "-lc", "curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash")
-}
-
-func applyKustomize(projectRoot string) error {
-	if err := ensureHelm(); err != nil {
-		return err
-	}
-	if err := execCmd("bash", "-lc", "helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true"); err != nil {
-		return err
-	}
-	if err := execCmd("helm", "repo", "update", "traefik"); err != nil {
-		return err
-	}
-	if err := execCmd("bash", "-lc", "kubectl get namespace traefik >/dev/null 2>&1 || kubectl create namespace traefik"); err != nil {
-		return err
-	}
-	if err := execCmd("bash", "-lc", "kubectl -n traefik get secret traefik-acme >/dev/null 2>&1 || kubectl -n traefik create secret generic traefik-acme --from-literal=dummy=1"); err != nil {
-		return err
-	}
-	if err := execCmd("bash", "-lc", "kubectl get namespace shipkit-system >/dev/null 2>&1 || kubectl create namespace shipkit-system"); err != nil {
-		return err
-	}
-
-	if err := ensureShipkitEnv(projectRoot); err != nil {
-		return err
-	}
-
-	_ = ensureLocalTLSTrust()
-
-	helmArgs := []string{
-		"upgrade", "--install", "traefik", "traefik/traefik",
-		"--namespace", "traefik",
-		"--create-namespace",
-		"--version", "v37.0.0",
-		"--reset-values",
-		"-f", filepath.Join(projectRoot, "k8s/base/traefik/helm-values.yaml"),
-	}
-	if _, err := exec.LookPath("mkcert"); err == nil {
-		helmArgs = append(helmArgs, "-f", filepath.Join(projectRoot, "k8s/overlays/development/traefik-staging-ca-patch.yaml"))
-	}
-	helmArgs = append(helmArgs, "--set", "installCRDs=true", "--wait")
-	if err := execCmd("helm", helmArgs...); err != nil {
-		return err
-	}
-	_ = execCmd("bash", "-lc", "kubectl get crd | grep -q 'middlewares.traefik.io' || (curl -s -o /tmp/traefik-crds.yaml https://raw.githubusercontent.com/traefik/traefik/v2.10/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml && kubectl apply -f /tmp/traefik-crds.yaml)")
-	if err := execCmd("bash", "-lc", "until kubectl get crd ingressroutes.traefik.io >/dev/null 2>&1; do sleep 2; done"); err != nil {
-		return err
-	}
-
-	return execCmd("kubectl", "apply", "-k", filepath.Join(projectRoot, "k8s/overlays/development"))
-}
-
-func waitForDeployment(namespace, name string, timeoutSeconds int) error {
-	check := exec.Command("bash", "-lc", fmt.Sprintf("kubectl -n %s get deploy %s >/dev/null 2>&1", namespace, name))
-	for i := range timeoutSeconds {
-		if check.Run() == nil {
-			break
-		}
-		exec.Command("bash", "-lc", "sleep 1").Run()
-		if i == timeoutSeconds-1 {
-			return fmt.Errorf("deployment %s/%s not found", namespace, name)
-		}
-	}
-	return execCmd("kubectl", "-n", namespace, "rollout", "status", fmt.Sprintf("deployment/%s", name), fmt.Sprintf("--timeout=%ds", timeoutSeconds))
-}
-
-func generateJWTSecret() (string, error) {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(buf), nil
-}
-
-func ensureShipkitEnv(projectRoot string) error {
-	envFile := filepath.Join(projectRoot, ".env")
-	envExample := filepath.Join(projectRoot, ".env.example")
-
-	if _, err := os.Stat(envFile); os.IsNotExist(err) {
-		if _, err2 := os.Stat(envExample); err2 == nil {
-			data, err := os.ReadFile(envExample)
-			if err != nil {
-				return err
-			}
-			content := string(data)
-			sec, _ := generateJWTSecret()
-			lines := strings.Split(content, "\n")
-			replaced := false
-			for i, line := range lines {
-				if strings.HasPrefix(line, "JWT_SECRET=") {
-					lines[i] = "JWT_SECRET=" + sec
-					replaced = true
-					break
-				}
-			}
-			if !replaced {
-				lines = append(lines, "JWT_SECRET="+sec)
-			}
-			final := strings.Join(lines, "\n")
-			if err := os.WriteFile(envFile, []byte(final), 0o600); err != nil {
-				return err
-			}
-		}
-	}
-
-	var fromFile string
-	if _, err := os.Stat(envFile); err == nil {
-		data, err := os.ReadFile(envFile)
-		if err != nil {
-			return err
-		}
-		lines := strings.Split(string(data), "\n")
-		hasJWT := false
-		for _, line := range lines {
-			if strings.HasPrefix(line, "JWT_SECRET=") && len(strings.TrimSpace(strings.TrimPrefix(line, "JWT_SECRET="))) > 0 {
-				hasJWT = true
-				break
-			}
-		}
-		if !hasJWT {
-			sec, _ := generateJWTSecret()
-			lines = append(lines, "JWT_SECRET="+sec)
-			if err := os.WriteFile(envFile, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
-				return err
-			}
-		}
-		fromFile = envFile
-	} else {
-		tmp := filepath.Join(os.TempDir(), "shipkit-env-fallback")
-		sec, _ := generateJWTSecret()
-		content := strings.Join([]string{
-			"JWT_SECRET=" + sec,
-			"JWT_EXPIRATION_MS=86400000",
-			"DATABASE_URL=jdbc:postgresql://postgres.shipkit-system.svc.cluster.local:5432/shipkit",
-			"DATABASE_USERNAME=postgres",
-			"DATABASE_PASSWORD=postgres",
-			"CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1",
-			"API_BASE_URL=/api",
-		}, "\n") + "\n"
-		if err := os.WriteFile(tmp, []byte(content), 0o600); err != nil {
-			return err
-		}
-		fromFile = tmp
-		defer os.Remove(tmp)
-	}
-
-	_ = execCmd("bash", "-lc", "kubectl create namespace shipkit-system --dry-run=client -o yaml | kubectl apply -f -")
-	_ = execCmd("bash", "-lc", "kubectl -n shipkit-system delete configmap shipkit-env --ignore-not-found=true")
-	return execCmd("bash", "-lc", fmt.Sprintf("kubectl -n shipkit-system create configmap shipkit-env --from-env-file=%s", fromFile))
-}
-
-func ensureLocalTLSTrust() error {
-	if _, err := exec.LookPath("mkcert"); err != nil {
-		return nil
-	}
-	_ = execCmd("bash", "-lc", "mkcert -install >/dev/null 2>&1 || true")
-	tmpDir := filepath.Join(os.TempDir(), "skdev-cert")
-	_ = execCmd("bash", "-lc", fmt.Sprintf("rm -rf %s && mkdir -p %s", tmpDir, tmpDir))
-	if err := execCmd("bash", "-lc", fmt.Sprintf("mkcert -cert-file %s/shipkit.crt -key-file %s/shipkit.key shipkit.local *.shipkit.local", tmpDir, tmpDir)); err != nil {
-		return err
-	}
-	defer execCmd("bash", "-lc", fmt.Sprintf("rm -rf %s", tmpDir))
-	return execCmd("bash", "-lc", fmt.Sprintf("kubectl -n traefik create secret tls shipkit-dev-tls --cert=%s/shipkit.crt --key=%s/shipkit.key --dry-run=client -o yaml | kubectl apply -f -", tmpDir, tmpDir))
-}
-
 func connectTelepresence() error {
 	if _, err := exec.LookPath("telepresence"); err != nil {
 		fmt.Println("[+] Installing Telepresence CLI …")
@@ -326,7 +156,6 @@ func runLocalService(projectRoot, svc, localPort string) error {
 		if err := execCmd("telepresence", "intercept", svc, "--namespace", ns, "--port", fmt.Sprintf("%s:8080", lp)); err != nil {
 			return err
 		}
-		// defaults for Spring app
 		os.Setenv("DATABASE_URL", "jdbc:postgresql://postgres.shipkit-system.svc.cluster.local:5432/shipkit")
 		os.Setenv("DATABASE_USERNAME", "postgres")
 		os.Setenv("DATABASE_PASSWORD", "postgres")
@@ -395,11 +224,28 @@ var devCmd = &cobra.Command{
 		if err := importImages("shipkit"); err != nil {
 			return err
 		}
-		if err := applyKustomize(root); err != nil {
+		if err := inst.EnsureKubectl(); err != nil {
 			return err
 		}
-		// Wait for Postgres to be ready before gateway starts hitting it
-		_ = waitForDeployment("shipkit-system", "postgres", 120)
+		if err := inst.EnsureHelmInstalled(); err != nil {
+			return err
+		}
+		useMkcert := (exec.Command("bash", "-lc", "command -v mkcert >/dev/null 2>&1").Run() == nil)
+		if err := inst.EnsureNamespacesAndSecrets(useMkcert); err != nil {
+			return err
+		}
+		if err := inst.EnsureShipkitEnvFromFileOrDefaults(root, ""); err != nil {
+			return err
+		}
+		baseValues := filepath.Join(root, "k8s/base/traefik/helm-values.yaml")
+		devTLSValues := filepath.Join(root, "k8s/overlays/development/traefik-staging-ca-patch.yaml")
+		if err := inst.InstallTraefik(baseValues, devTLSValues, "v37.0.0", useMkcert); err != nil {
+			return err
+		}
+		if err := inst.ApplyOverlay(filepath.Join(root, "k8s/overlays/development")); err != nil {
+			return err
+		}
+		_ = inst.WaitForDeployment("shipkit-system", "postgres", 120)
 		fmt.Println("[✓] Shipkit dev stack is now running at: http://localhost")
 
 		if flagLocal != "" {

@@ -10,12 +10,12 @@
 
 ## Quick Install
 
-Getting started with Shipkit is as simple as running a single command. The script will install and set up everything you need to get started.
+Run this one-liner (requires sudo):
 
 <div align="center">
 
 ```sh
-curl -sSL https://raw.githubusercontent.com/lon60/shipkit/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/lon60/shipkit/main/install.sh | sudo bash
 ```
 
 </div>
