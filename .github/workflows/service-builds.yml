@@ -28,19 +28,15 @@ jobs:
         working-directory: apps/gateway-api
         run: ./gradlew build --no-daemon
 
-      # Build k3s-control (Go)
-      - name: Set up Go 1.x (only for k3s-control)
-        if: matrix.service == 'k3s-control'
-        uses: actions/setup-go@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.24'
 
       - name: Build k3s-control
         if: matrix.service == 'k3s-control'
         working-directory: apps/k3s-control
         run: make build
-
-      # gateway-api and frontend handled above
 
       - name: Set up Bun (only for frontend)
         if: matrix.service == 'frontend'
@@ -57,15 +53,10 @@ jobs:
           bun install
           bun run build 
 
-      - name: Set up Go for CLI
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24.x'
-
       - name: Build skdev
         run: |
           cd tools/shipkit-cli
-          go build -trimpath -ldflags "-s -w" -o ../../skdev ./cmd/skdev
+          go build -trimpath -ldflags "-s -w" -o ../../skdev
 
       - name: Build shipkit-install
         run: |
