@@ -20,5 +20,7 @@ patches:
     kind: Deployment
     name: k3s-control
 
-commonLabels:
-  environment: development
+labels:
+- pairs:
+    environment: development
+  includeSelectors: false

@@ -4,5 +4,7 @@ kind: Kustomization
 resources:
 - ingress.yaml
 
-commonLabels:
-  app.kubernetes.io/managed-by: shipkit
+labels:
+- pairs:
+    app.kubernetes.io/managed-by: shipkit
+  includeSelectors: false

@@ -152,19 +152,6 @@ public class DomainSetupService {
             String gatewayHttpYaml = renderer.render("ingressroute.ftl.yaml", commonGatewayModel);
             String frontendHttpYaml = renderer.render("ingressroute.ftl.yaml", commonFrontendModel);
 
-            Map<String, Object> gatewayApiHttpRoute = Map.of(
-                    "apiVersion", TRAEFIK_GROUP + "/" + TRAEFIK_VERSION,
-                    "kind", "IngressRoute",
-                    "metadata", Map.of("name", gatewayApiHttpName, "namespace", kubernetesNamespace),
-                    "spec", Map.of()
-            );
-            Map<String, Object> frontendHttpRoute = Map.of(
-                    "apiVersion", TRAEFIK_GROUP + "/" + TRAEFIK_VERSION,
-                    "kind", "IngressRoute",
-                    "metadata", Map.of("name", frontendHttpName, "namespace", kubernetesNamespace),
-                    "spec", Map.of()
-            );
-
             createOrUpdateIngressRoute(gatewayApiHttpName, yamlToMap(gatewayHttpYaml), customObjectsApi);
             createOrUpdateIngressRoute(frontendHttpName, yamlToMap(frontendHttpYaml), customObjectsApi);
 

@@ -5,6 +5,8 @@ resources:
 - middleware.yaml
 - secret.yaml
 
-commonLabels:
-  app.kubernetes.io/component: ingress-controller
-  app.kubernetes.io/managed-by: shipkit
+labels:
+- pairs:
+    app.kubernetes.io/component: ingress-controller
+    app.kubernetes.io/managed-by: shipkit
+  includeSelectors: false

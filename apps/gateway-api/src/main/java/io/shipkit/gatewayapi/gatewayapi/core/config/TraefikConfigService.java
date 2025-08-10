@@ -82,10 +82,7 @@ public class TraefikConfigService {
                 log.info("Created Traefik ACME secret with email {}", email);
             }
 
-            // Remove any conflicting CLI flags that would override env-driven ACME config
             sanitizeTraefikArgs(client);
-
-            // Restart Traefik so it picks up updated environment configuration
             restartTraefikDeployment(client);
 
         } catch (IOException | ApiException e) {
