@@ -55,6 +55,9 @@ public class ManifestBuilder {
                 irModel.put("name", app);
                 irModel.put("namespace", ns);
                 irModel.put("sslEnabled", svc.isSslEnabled());
+                if (svc.isSslEnabled()) {
+                    irModel.put("certResolver", "letsencrypt");
+                }
                 irModel.put("match", "Host(`" + host + "`)");
                 irModel.put("serviceName", app);
                 irModel.put("serviceNamespace", ns);

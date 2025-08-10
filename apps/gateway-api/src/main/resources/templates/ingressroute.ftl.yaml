@@ -14,6 +14,8 @@ spec:
   tls:
   <#if certResolver?? && (certResolver?length > 0)>
     certResolver: ${certResolver}
+  <#else>
+    {}
   </#if>
 </#if>
   routes:
