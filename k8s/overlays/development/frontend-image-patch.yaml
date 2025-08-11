@@ -8,5 +8,5 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: frontend:dev
+        image: localhost/frontend:dev
         imagePullPolicy: IfNotPresent

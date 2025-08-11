@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-func InstallTraefik(baseValuesPath, devTLSValuesPath, chartVersion string, useMkcert bool) error {
+func InstallTraefik(baseValuesPath string, additionalValues []string, chartVersion string) error {
 	if err := exec.Command("bash", "-lc", "helm repo add traefik https://traefik.github.io/charts >/dev/null 2>&1 || true").Run(); err != nil {
 		return err
 	}
@@ -20,10 +20,12 @@ func InstallTraefik(baseValuesPath, devTLSValuesPath, chartVersion string, useMk
 		"--reset-values",
 		"-f", filepath.Clean(baseValuesPath),
 	}
-	if useMkcert && devTLSValuesPath != "" {
-		args = append(args, "-f", filepath.Clean(devTLSValuesPath))
+	for _, v := range additionalValues {
+		if v != "" {
+			args = append(args, "-f", filepath.Clean(v))
+		}
 	}
-	args = append(args, "--set", "installCRDs=true", "--wait")
+	args = append(args, "--set", "installCRDs=true")
 	if err := exec.Command("helm", args...).Run(); err != nil {
 		return err
 	}

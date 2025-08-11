@@ -10,7 +10,7 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <PageHeader 
           title="Deployments"
-          description="Manage your Docker container deployments"
+          description="Manage your container deployments"
         />
         <DeploymentsList />
       </div>

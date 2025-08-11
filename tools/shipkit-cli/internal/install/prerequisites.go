@@ -32,21 +32,17 @@ func EnsureHelm() error {
 	return errors.New("helm not installed")
 }
 
-func EnsureDockerInstalled() error {
-	if _, err := exec.LookPath("docker"); err == nil {
+func EnsureContainerEngineInstalled() error {
+	if _, err := exec.LookPath("podman"); err == nil {
 		return nil
 	}
 	cmd := exec.Command("bash", "-lc", `
 set -euo pipefail
 if command -v apt-get >/dev/null 2>&1; then
+  . /etc/os-release
   sudo apt-get update -qq
   sudo apt-get install -yq ca-certificates curl gnupg lsb-release >/dev/null
-  sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL "https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-  sudo apt-get update -qq
-  sudo apt-get install -yq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null
-  sudo systemctl enable --now docker || true
+  sudo apt-get -yq install podman >/dev/null
 fi`)
 	return cmd.Run()
 }

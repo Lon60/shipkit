@@ -8,5 +8,5 @@ spec:
     spec:
       containers:
       - name: gateway-api
-        image: gateway-api:dev
+        image: localhost/gateway-api:dev
         imagePullPolicy: IfNotPresent

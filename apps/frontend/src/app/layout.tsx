@@ -6,7 +6,7 @@ import { ClientProviders } from '@/components/clientProviders';
 
 export const metadata: Metadata = {
   title: "Shipkit",
-  description: "Docker deployment platform",
+  description: "Container deployment platform",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
