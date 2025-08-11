@@ -28,8 +28,7 @@ test:
 	go mod tidy
 	go test ./... 
 
-## docker-build: Build container image
-.PHONY: docker-build
+.PHONY: image-build
 
-docker-build:
-	docker build -t k3s-control:dev . 
+image-build:
+	podman build -t k3s-control:dev . 

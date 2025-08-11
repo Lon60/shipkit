@@ -10,7 +10,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "skdev",
 	Short: "Shipkit local development CLI",
-	Long:  "skdev helps you start/stop the local k3d-based Shipkit dev environment and run services locally.",
+	Long:  "skdev helps you start/stop the local kind (Podman)-based Shipkit dev environment and run services locally.",
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},

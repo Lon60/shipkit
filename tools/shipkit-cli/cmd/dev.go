@@ -48,9 +48,8 @@ func repoRoot() (string, error) {
 	return wd, nil
 }
 
-func k3dClusterExists(name string) bool {
-	cmd := exec.Command("k3d", "cluster", "list")
-	out, err := cmd.Output()
+func kindClusterExists(name string) bool {
+	out, err := exec.Command("bash", "-lc", "kind get clusters").Output()
 	if err != nil {
 		return false
 	}
@@ -58,35 +57,43 @@ func k3dClusterExists(name string) bool {
 }
 
 func createOrUseCluster(clusterName string) error {
-	if err := ensureBinary("docker", "Install Docker and ensure daemon is running"); err != nil {
+	if err := ensureBinary("podman", "Install Podman: https://podman.io/docs/installation"); err != nil {
 		return err
 	}
-	if err := exec.Command("docker", "info").Run(); err != nil {
-		return fmt.Errorf("docker daemon is not running. please start docker and retry")
-	}
-	if err := ensureBinary("k3d", "Install k3d: https://k3d.io/#installation"); err != nil {
+	ensurePodmanUserSocket()
+	if err := ensureBinary("kind", "Install kind: https://kind.sigs.k8s.io/docs/user/quick-start/#installation"); err != nil {
 		return err
 	}
 	if err := ensureBinary("kubectl", "Install kubectl"); err != nil {
 		return err
 	}
-
-	if k3dClusterExists(clusterName) {
-		fmt.Printf("[!] k3d cluster '%s' already exists – skipping creation.\n", clusterName)
-	} else {
-		fmt.Printf("[+] Creating k3d cluster '%s' ...\n", clusterName)
-		if err := execCmd("k3d", "cluster", "create", clusterName,
-			"--k3s-arg", "--disable=traefik@server:0",
-			"--servers", "1", "--agents", "0",
-			"--api-port", "6550",
-			"--port", "80:80@loadbalancer",
-			"--port", "443:443@loadbalancer",
-		); err != nil {
-			return err
-		}
+	if kindClusterExists(clusterName) {
+		fmt.Printf("[!] kind cluster '%s' already exists – skipping creation.\n", clusterName)
+		return nil
 	}
-
-	return nil
+	cfg := "" +
+		"kind: Cluster\n" +
+		"apiVersion: kind.x-k8s.io/v1alpha4\n" +
+		"networking:\n" +
+		"  apiServerAddress: \"127.0.0.1\"\n" +
+		"  apiServerPort: 6550\n" +
+		"nodes:\n" +
+		"- role: control-plane\n" +
+		"  extraPortMappings:\n" +
+		"  - containerPort: 30080\n" +
+		"    hostPort: 80\n" +
+		"    protocol: TCP\n" +
+		"  - containerPort: 30443\n" +
+		"    hostPort: 443\n" +
+		"    protocol: TCP\n"
+	tmp := filepath.Join(os.TempDir(), "shipkit-kind-config.yaml")
+	if err := os.WriteFile(tmp, []byte(cfg), 0o600); err != nil {
+		return err
+	}
+	fmt.Printf("[+] Creating kind cluster '%s' ...\n", clusterName)
+	cmd := exec.Command("bash", "-lc", fmt.Sprintf("KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name %s --config %s", clusterName, tmp))
+	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
+	return cmd.Run()
 }
 
 func buildImages(projectRoot string, rebuild []string) error {
@@ -98,18 +105,22 @@ func buildImages(projectRoot string, rebuild []string) error {
 		}
 		return false
 	}
+	fmt.Println("[+] Building container images with Podman …")
 	if should("gateway-api") || !imageExists("gateway-api:dev") {
-		if err := execCmd("bash", "-lc", fmt.Sprintf("cd %s && cd apps/gateway-api && ./gradlew bootBuildImage --imageName=gateway-api:dev", projectRoot)); err != nil {
+		fmt.Println("    - Building gateway-api:dev …")
+		if err := execCmd("bash", "-lc", fmt.Sprintf("cd %s && cd apps/gateway-api && podman build -f Dockerfile -t gateway-api:dev .", projectRoot)); err != nil {
 			return err
 		}
 	}
 	if should("frontend") || !imageExists("frontend:dev") {
-		if err := execCmd("bash", "-lc", fmt.Sprintf("cd %s && cd apps/frontend && docker build -f Dockerfile -t frontend:dev .", projectRoot)); err != nil {
+		fmt.Println("    - Building frontend:dev …")
+		if err := execCmd("bash", "-lc", fmt.Sprintf("cd %s && cd apps/frontend && podman build -f Dockerfile -t frontend:dev .", projectRoot)); err != nil {
 			return err
 		}
 	}
 	if should("k3s-control") || !imageExists("k3s-control:dev") {
-		if err := execCmd("bash", "-lc", fmt.Sprintf("cd %s && cd apps/k3s-control && docker build -f Dockerfile -t k3s-control:dev .", projectRoot)); err != nil {
+		fmt.Println("    - Building k3s-control:dev …")
+		if err := execCmd("bash", "-lc", fmt.Sprintf("cd %s && cd apps/k3s-control && podman build -f Dockerfile -t k3s-control:dev .", projectRoot)); err != nil {
 			return err
 		}
 	}
@@ -117,19 +128,30 @@ func buildImages(projectRoot string, rebuild []string) error {
 }
 
 func imageExists(name string) bool {
-	cmd := exec.Command("bash", "-lc", fmt.Sprintf("docker image inspect %s >/dev/null 2>&1", name))
+	cmd := exec.Command("bash", "-lc", fmt.Sprintf("podman image exists %s", name))
 	return cmd.Run() == nil
 }
 
 func importImages(cluster string) error {
+	fmt.Println("[+] Importing images into kind …")
 	for _, img := range []string{"gateway-api:dev", "frontend:dev", "k3s-control:dev"} {
 		if imageExists(img) {
-			if err := execCmd("k3d", "image", "import", "-c", cluster, img); err != nil {
+			tar := filepath.Join(os.TempDir(), strings.ReplaceAll(img, ":", "_")+".tar")
+			fmt.Printf("    - Saving %s and loading into kind …\n", img)
+			if err := execCmd("bash", "-lc", fmt.Sprintf("podman image save -o %s %s", tar, img)); err != nil {
 				return err
 			}
+			if err := execCmd("bash", "-lc", fmt.Sprintf("KIND_EXPERIMENTAL_PROVIDER=podman kind load image-archive --name %s %s", cluster, tar)); err != nil {
+				return err
+			}
+			_ = os.Remove(tar)
 		}
 	}
 	return nil
+}
+
+func ensurePodmanUserSocket() {
+	_ = exec.Command("bash", "-lc", "systemctl --user enable --now podman.socket >/dev/null 2>&1 || true").Run()
 }
 
 func connectTelepresence() error {
@@ -199,7 +221,7 @@ func runLocalService(projectRoot, svc, localPort string) error {
 
 var devCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start the Shipkit k3d dev environment",
+	Short: "Start the Shipkit kind dev environment",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if flagPort != "" && flagLocal == "" {
 			return fmt.Errorf("--local-port requires --local <service>")
@@ -238,14 +260,23 @@ var devCmd = &cobra.Command{
 			return err
 		}
 		baseValues := filepath.Join(root, "k8s/base/traefik/helm-values.yaml")
-		devTLSValues := filepath.Join(root, "k8s/overlays/development/traefik-staging-ca-patch.yaml")
-		if err := inst.InstallTraefik(baseValues, devTLSValues, "v37.0.0", useMkcert); err != nil {
+		values := []string{filepath.Join(root, "k8s/overlays/development/traefik-kind-port-patch.yaml")}
+		if useMkcert {
+			values = append(values, filepath.Join(root, "k8s/overlays/development/traefik-staging-ca-patch.yaml"))
+		}
+		fmt.Println("[+] Installing Traefik via Helm …")
+		if err := inst.InstallTraefik(baseValues, values, "v37.0.0"); err != nil {
 			return err
 		}
+		fmt.Println("[+] Applying Shipkit development overlay …")
 		if err := inst.ApplyOverlay(filepath.Join(root, "k8s/overlays/development")); err != nil {
 			return err
 		}
-		_ = inst.WaitForDeployment("shipkit-system", "postgres", 120)
+		fmt.Println("[+] Waiting for core components to become ready …")
+		_ = inst.WaitForDeployment("shipkit-system", "postgres", 180)
+		_ = inst.WaitForDeployment("shipkit-system", "gateway-api", 180)
+		_ = inst.WaitForDeployment("shipkit-system", "k3s-control", 180)
+		_ = inst.WaitForDeployment("shipkit-system", "shipkit-frontend", 180)
 		fmt.Println("[✓] Shipkit dev stack is now running at: http://localhost")
 
 		if flagLocal != "" {
