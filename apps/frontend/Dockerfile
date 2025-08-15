@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM oven/bun:1-alpine AS deps
+FROM docker.io/oven/bun:1-alpine AS deps
 WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install
@@ -9,7 +9,7 @@ WORKDIR /app
 COPY . .
 RUN SKIP_ENV_VALIDATION=1 bun run build
 
-FROM oven/bun:1-alpine AS runner
+FROM docker.io/oven/bun:1-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 

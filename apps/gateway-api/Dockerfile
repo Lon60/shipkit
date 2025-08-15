@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk AS builder
+FROM docker.io/eclipse-temurin:21-jdk AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ COPY src/ src/
 
 RUN ./gradlew build -x test --no-daemon
 
-FROM eclipse-temurin:21-jre AS runtime
+FROM docker.io/eclipse-temurin:21-jre AS runtime
 
 RUN apt-get update && \
     apt-get install -y curl && \

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- Builder stage ---
-FROM golang:1.24-alpine AS builder
+FROM docker.io/golang:1.24-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata protobuf gcc musl-dev
 WORKDIR /src
