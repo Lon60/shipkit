@@ -8,6 +8,11 @@ service K3sControlService {
   rpc ApplyDeployment (ApplyRequest) returns (ActionResult);
   rpc DeleteDeployment (DeleteRequest) returns (ActionResult);
   rpc GetStatus (StatusRequest)       returns (AppStatus);
+  // Apply arbitrary YAML as-is (no namespace override). Intended for platform-level resources
+  // like Traefik IngressRoutes or ConfigMaps. Multiple documents separated by '---' are supported.
+  rpc ApplyManifest (ApplyManifestRequest) returns (ActionResult);
+  // Delete a specific Kubernetes resource by Group/Version/Kind, namespace, and name.
+  rpc DeleteResource (DeleteResourceRequest) returns (ActionResult);
 }
 
 message ApplyRequest {
@@ -27,6 +32,18 @@ message ActionResult {
   int32 status = 1;   // 0 = OK
   string message = 2;
   string details = 3;
+}
+
+message ApplyManifestRequest {
+  string manifest_yaml = 1;
+}
+
+message DeleteResourceRequest {
+  string api_group = 1;   // e.g. "traefik.io" or empty for core
+  string api_version = 2; // e.g. "v1alpha1" or "v1"
+  string kind = 3;        // e.g. "IngressRoute"
+  string namespace = 4;   // empty for cluster-scoped
+  string name = 5;        // resource name
 }
 
 message AppStatus {

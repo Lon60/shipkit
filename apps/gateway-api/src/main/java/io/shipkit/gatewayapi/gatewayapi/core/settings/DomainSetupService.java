@@ -1,10 +1,6 @@
 package io.shipkit.gatewayapi.gatewayapi.core.settings;
-
-import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.openapi.ApiException;
-import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.shipkit.gatewayapi.gatewayapi.core.config.K8sTemplateRenderer;
+import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.K3sControlGrpcClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +20,6 @@ import java.util.Map;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.InternalServerException;
 import io.shipkit.gatewayapi.gatewayapi.core.exceptions.DomainValidationException;
 
-import static io.kubernetes.client.util.Config.defaultClient;
 
 @Slf4j
 @Service
@@ -37,13 +32,13 @@ public class DomainSetupService {
 
     private final PlatformSettingRepository repository;
     private final K8sTemplateRenderer renderer;
+    private final K3sControlGrpcClient k3sClient;
 
     @Value("${kubernetes.namespace:shipkit-system}")
     private String kubernetesNamespace;
 
     private final String TRAEFIK_GROUP = "traefik.io";
     private final String TRAEFIK_VERSION = "v1alpha1";
-    private final String INGRESSROUTE_PLURAL = "ingressroutes";
 
     @Transactional
     public void configureDomain(String domain,
@@ -110,15 +105,11 @@ public class DomainSetupService {
 
     private void applyIngressRoute(String domain, boolean sslEnabled, boolean forceSsl) {
         try {
-            ApiClient client = defaultClient();
-            Configuration.setDefaultApiClient(client);
-            CustomObjectsApi customObjectsApi = new CustomObjectsApi(client);
-
             // Delete any previous versions (HTTP and HTTPS variants)
-            deleteIngressRoute("shipkit-gateway-api", customObjectsApi);
-            deleteIngressRoute("shipkit-gateway-api-https", customObjectsApi);
-            deleteIngressRoute("shipkit-frontend", customObjectsApi);
-            deleteIngressRoute("shipkit-frontend-https", customObjectsApi);
+            deleteIngressRoute("shipkit-gateway-api");
+            deleteIngressRoute("shipkit-gateway-api-https");
+            deleteIngressRoute("shipkit-frontend");
+            deleteIngressRoute("shipkit-frontend-https");
 
             String gatewayApiHttpName = "shipkit-gateway-api";
             String gatewayApiHttpsName = "shipkit-gateway-api-https";
@@ -152,8 +143,8 @@ public class DomainSetupService {
             String gatewayHttpYaml = renderer.render("ingressroute.ftl.yaml", commonGatewayModel);
             String frontendHttpYaml = renderer.render("ingressroute.ftl.yaml", commonFrontendModel);
 
-            createOrUpdateIngressRoute(gatewayApiHttpName, yamlToMap(gatewayHttpYaml), customObjectsApi);
-            createOrUpdateIngressRoute(frontendHttpName, yamlToMap(frontendHttpYaml), customObjectsApi);
+            applyManifestYaml(gatewayHttpYaml);
+            applyManifestYaml(frontendHttpYaml);
 
             if (sslEnabled) {
                 Map<String, Object> gatewayTlsModel = new java.util.HashMap<>();
@@ -181,70 +172,40 @@ public class DomainSetupService {
                 String gatewayHttpsYaml = renderer.render("ingressroute.ftl.yaml", gatewayTlsModel);
                 String frontendHttpsYaml = renderer.render("ingressroute.ftl.yaml", frontendTlsModel);
 
-                createOrUpdateIngressRoute(gatewayApiHttpsName, yamlToMap(gatewayHttpsYaml), customObjectsApi);
-                createOrUpdateIngressRoute(frontendHttpsName, yamlToMap(frontendHttpsYaml), customObjectsApi);
+                applyManifestYaml(gatewayHttpsYaml);
+                applyManifestYaml(frontendHttpsYaml);
             }
 
         } catch (Exception e) {
-            String errorMessage;
-            if (e instanceof ApiException) {
-                ApiException ae = (ApiException) e;
-                errorMessage = String.format("API Error: %s (Code: %d, Body: %s)", ae.getMessage(), ae.getCode(), ae.getResponseBody());
-            } else {
-                errorMessage = e.getMessage();
-            }
-            log.error("Error applying IngressRoute configuration: {}", errorMessage, e);
-            throw new InternalServerException("Failed to configure Traefik IngressRoute: " + errorMessage);
+            log.error("Error applying IngressRoute configuration: {}", e.getMessage(), e);
+            throw new InternalServerException("Failed to configure Traefik IngressRoute: " + e.getMessage());
         }
     }
 
-    private void createOrUpdateIngressRoute(String name, Map<String, Object> ingressRoute, CustomObjectsApi api) throws ApiException {
+    private void deleteIngressRoute(String name) {
         try {
-            api.getNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, name);
-            api.replaceNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, name, ingressRoute, null, null);
-            log.info("Updated IngressRoute '{}'", name);
-        } catch (ApiException e) {
-            if (e.getCode() == 404) {
-                api.createNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, ingressRoute, null, null, null);
-                log.info("Created IngressRoute '{}'", name);
-            } else {
-                throw e;
-            }
+            k3sClient.deleteResource(TRAEFIK_GROUP, TRAEFIK_VERSION, "IngressRoute", kubernetesNamespace, name);
+            log.info("Delete requested for IngressRoute '{}' via k3s-control", name);
+        } catch (Exception e) {
+            log.warn("Failed to request delete for IngressRoute '{}': {}", name, e.getMessage());
         }
-    }
-
-    private void deleteIngressRoute(String name, CustomObjectsApi api) {
-        try {
-            api.deleteNamespacedCustomObject(TRAEFIK_GROUP, TRAEFIK_VERSION, kubernetesNamespace, INGRESSROUTE_PLURAL, name, 0, null, null, null, null);
-            log.info("Deleted IngressRoute '{}'", name);
-        } catch (ApiException e) {
-            if (e.getCode() != 404) {
-                log.warn("Failed to delete IngressRoute '{}'. Code: {}. Response Body: {}", name, e.getCode(), e.getResponseBody(), e);
-            }
-        }
-    }
-
-    private Map<String, Object> yamlToMap(String yaml) {
-        org.yaml.snakeyaml.Yaml parser = new org.yaml.snakeyaml.Yaml();
-        Object obj = parser.load(yaml);
-        if (!(obj instanceof Map)) {
-            throw new IllegalStateException("Rendered YAML is not a map");
-        }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> map = (Map<String, Object>) obj;
-        return map;
     }
 
     private void rollbackIngressRoute(String domain) {
         try {
-            ApiClient client = defaultClient();
-            CustomObjectsApi customObjectsApi = new CustomObjectsApi(client);
-            deleteIngressRoute("shipkit-gateway-api", customObjectsApi);
-            deleteIngressRoute("shipkit-gateway-api-https", customObjectsApi);
-            deleteIngressRoute("shipkit-frontend", customObjectsApi);
-            deleteIngressRoute("shipkit-frontend-https", customObjectsApi);
+            deleteIngressRoute("shipkit-gateway-api");
+            deleteIngressRoute("shipkit-gateway-api-https");
+            deleteIngressRoute("shipkit-frontend");
+            deleteIngressRoute("shipkit-frontend-https");
         } catch (Exception e) {
             log.warn("Rollback failed: {}", e.getMessage());
+        }
+    }
+
+    private void applyManifestYaml(String yaml) {
+        var res = k3sClient.applyManifest(yaml);
+        if (res.getStatus() != 0) {
+            throw new InternalServerException("Failed to apply manifest: " + res.getMessage());
         }
     }
 }

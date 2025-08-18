@@ -7,7 +7,6 @@ import io.shipkit.gatewayapi.gatewayapi.domain.deployment.runtime.model.K3sAppSt
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-// Always enabled since Shipkit now runs exclusively on K3s
 import org.springframework.stereotype.Component;
 
 import k3s_control.*;
@@ -38,6 +37,26 @@ public class K3sControlGrpcClient {
                 .setManifestYaml(manifestYaml)
                 .build();
         ActionResult res = blockingStub.applyDeployment(req);
+        return toActionResult(res);
+    }
+
+    public K3sActionResult applyManifest(String manifestYaml) {
+        ApplyManifestRequest req = ApplyManifestRequest.newBuilder()
+                .setManifestYaml(manifestYaml)
+                .build();
+        ActionResult res = blockingStub.applyManifest(req);
+        return toActionResult(res);
+    }
+
+    public K3sActionResult deleteResource(String apiGroup, String apiVersion, String kind, String namespace, String name) {
+        DeleteResourceRequest req = DeleteResourceRequest.newBuilder()
+                .setApiGroup(apiGroup == null ? "" : apiGroup)
+                .setApiVersion(apiVersion)
+                .setKind(kind)
+                .setNamespace(namespace == null ? "" : namespace)
+                .setName(name)
+                .build();
+        ActionResult res = blockingStub.deleteResource(req);
         return toActionResult(res);
     }
 

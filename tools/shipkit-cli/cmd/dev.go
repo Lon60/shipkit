@@ -137,9 +137,13 @@ func importImages(cluster string) error {
 	for _, img := range []string{"gateway-api:dev", "frontend:dev", "k3s-control:dev"} {
 		if imageExists(img) {
 			tar := filepath.Join(os.TempDir(), strings.ReplaceAll(img, ":", "_")+".tar")
+			_ = os.Remove(tar)
 			fmt.Printf("    - Saving %s and loading into kind …\n", img)
 			if err := execCmd("bash", "-lc", fmt.Sprintf("podman image save -o %s %s", tar, img)); err != nil {
-				return err
+				_ = os.Remove(tar)
+				if err2 := execCmd("bash", "-lc", fmt.Sprintf("podman image save -o %s %s", tar, img)); err2 != nil {
+					return err
+				}
 			}
 			if err := execCmd("bash", "-lc", fmt.Sprintf("KIND_EXPERIMENTAL_PROVIDER=podman kind load image-archive --name %s %s", cluster, tar)); err != nil {
 				return err
@@ -272,6 +276,7 @@ var devCmd = &cobra.Command{
 		if err := inst.ApplyOverlay(filepath.Join(root, "k8s/overlays/development")); err != nil {
 			return err
 		}
+		_ = execCmd("bash", "-lc", "kubectl -n shipkit-system rollout restart deployment gateway-api k3s-control shipkit-frontend || true")
 		fmt.Println("[+] Waiting for core components to become ready …")
 		_ = inst.WaitForDeployment("shipkit-system", "postgres", 180)
 		_ = inst.WaitForDeployment("shipkit-system", "gateway-api", 180)

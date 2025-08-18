@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -260,4 +261,112 @@ func (s *Service) GetStatus(ctx context.Context, req *pb.StatusRequest) (*pb.App
 	}
 
 	return &pb.AppStatus{Uuid: req.Uuid, Status: 0, Message: "ok", State: overallState, Containers: containerStatuses}, nil
+}
+
+// ApplyManifest applies arbitrary multi-document YAML without namespace overrides.
+// Intended for platform-level resources like Traefik IngressRoutes.
+func (s *Service) ApplyManifest(ctx context.Context, req *pb.ApplyManifestRequest) (*pb.ActionResult, error) {
+	if s.noop {
+		return &pb.ActionResult{Status: 0, Message: "noop apply manifest"}, nil
+	}
+
+	documents := strings.Split(req.ManifestYaml, "---")
+	d := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+
+	for _, doc := range documents {
+		doc = strings.TrimSpace(doc)
+		if doc == "" {
+			continue
+		}
+
+		obj := &unstructured.Unstructured{}
+		_, gvk, err := d.Decode([]byte(doc), nil, obj)
+		if err != nil {
+			return &pb.ActionResult{Status: 1, Message: "YAML decode error", Details: err.Error()}, nil
+		}
+
+		mapping, err := s.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			if meta.IsNoMatchError(err) {
+				if r, ok := s.mapper.(meta.ResettableRESTMapper); ok {
+					r.Reset()
+					mapping, err = s.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+				}
+			}
+			if err != nil {
+				return &pb.ActionResult{Status: 1, Message: "REST mapping error", Details: err.Error()}, nil
+			}
+		}
+
+		var ri dynamic.ResourceInterface
+		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
+			if obj.GetNamespace() == "" {
+				return &pb.ActionResult{Status: 1, Message: "namespaced resource missing namespace"}, nil
+			}
+			ri = s.dynamic.Resource(mapping.Resource).Namespace(obj.GetNamespace())
+		} else {
+			ri = s.dynamic.Resource(mapping.Resource)
+		}
+
+		obj.SetManagedFields(nil)
+		data, err := runtime.Encode(unstructured.UnstructuredJSONScheme, obj)
+		if err != nil {
+			return &pb.ActionResult{Status: 1, Message: "encode error", Details: err.Error()}, nil
+		}
+
+		fieldManager := "k3s-control"
+		_, err = ri.Patch(ctx, obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: fieldManager, Force: ptrBool(true)})
+		if err != nil {
+			return &pb.ActionResult{Status: 1, Message: "apply error", Details: err.Error()}, nil
+		}
+	}
+
+	return &pb.ActionResult{Status: 0, Message: "applied successfully"}, nil
+}
+
+// DeleteResource deletes a specific resource by GVK/namespace/name.
+func (s *Service) DeleteResource(ctx context.Context, req *pb.DeleteResourceRequest) (*pb.ActionResult, error) {
+	if s.noop {
+		return &pb.ActionResult{Status: 0, Message: "noop delete resource"}, nil
+	}
+
+	group := req.ApiGroup
+	version := req.ApiVersion
+	kind := req.Kind
+	if version == "" || kind == "" {
+		return &pb.ActionResult{Status: 1, Message: "apiVersion and kind are required"}, nil
+	}
+
+	// Resolve resource mapping
+	gvk := schema.FromAPIVersionAndKind(fmt.Sprintf("%s/%s", group, version), kind)
+	mapping, err := s.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		if meta.IsNoMatchError(err) {
+			if r, ok := s.mapper.(meta.ResettableRESTMapper); ok {
+				r.Reset()
+				mapping, err = s.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+			}
+		}
+		if err != nil {
+			return &pb.ActionResult{Status: 1, Message: "REST mapping error", Details: err.Error()}, nil
+		}
+	}
+
+	var ri dynamic.ResourceInterface
+	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
+		if req.Namespace == "" {
+			return &pb.ActionResult{Status: 1, Message: "namespace required for namespaced resource"}, nil
+		}
+		ri = s.dynamic.Resource(mapping.Resource).Namespace(req.Namespace)
+	} else {
+		ri = s.dynamic.Resource(mapping.Resource)
+	}
+
+	propagation := metav1.DeletePropagationBackground
+	err = ri.Delete(ctx, req.Name, metav1.DeleteOptions{PropagationPolicy: &propagation})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return &pb.ActionResult{Status: 1, Message: "delete error", Details: err.Error()}, nil
+	}
+
+	return &pb.ActionResult{Status: 0, Message: "delete requested"}, nil
 }
