@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleJvm" value="temurin-25" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/shipkit-api" />
+            <option value="$PROJECT_DIR$/shipkit-app" />
+            <option value="$PROJECT_DIR$/shipkit-deployments" />
+            <option value="$PROJECT_DIR$/shipkit-k8s-adapter" />
+            <option value="$PROJECT_DIR$/shipkit-templates" />
+            <option value="$PROJECT_DIR$/shipkit-users" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/shipkit-app" />
+        <option name="gradleJvm" value="temurin-25" />
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>
