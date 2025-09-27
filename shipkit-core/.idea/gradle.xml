@@ -22,6 +22,10 @@
         <option name="externalProjectPath" value="$PROJECT_DIR$/shipkit-app" />
         <option name="gradleJvm" value="temurin-25" />
       </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/shipkit-web" />
+        <option name="gradleJvm" value="temurin-25" />
+      </GradleProjectSettings>
     </option>
   </component>
 </project>
