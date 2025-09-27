@@ -1,7 +1,0 @@
-query {
-    status {
-        status
-        adminInitialized
-        domainInitialized
-    }
-} 

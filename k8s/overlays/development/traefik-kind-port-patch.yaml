@@ -1,6 +1,0 @@
-ports:
-  web:
-    nodePort: 30080
-  websecure:
-    nodePort: 30443
-

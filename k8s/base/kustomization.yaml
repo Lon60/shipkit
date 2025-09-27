@@ -1,6 +1,0 @@
-resources:
-  - namespace.yaml
-  - postgres.yaml
-  - gateway-api.yaml
-  - frontend.yaml
-  - k3s-control.yaml 
