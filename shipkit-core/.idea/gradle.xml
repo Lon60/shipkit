@@ -15,6 +15,7 @@
             <option value="$PROJECT_DIR$/shipkit-k8s-adapter" />
             <option value="$PROJECT_DIR$/shipkit-templates" />
             <option value="$PROJECT_DIR$/shipkit-users" />
+            <option value="$PROJECT_DIR$/shipkit-web" />
           </set>
         </option>
       </GradleProjectSettings>
