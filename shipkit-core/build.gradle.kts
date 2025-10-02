@@ -1,20 +1,37 @@
 plugins {
-    id("java")
+    java
+    alias(libs.plugins.spring.dependency.management) apply false
+    alias(libs.plugins.spring.boot) apply false
 }
 
 group = "com.shipkit"
 version = "0.2.0-SNAPSHOT"
 
-repositories {
-    mavenCentral()
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
 }
 
-dependencies {
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
+subprojects {
+    group = rootProject.group
+    version = rootProject.version
 
-tasks.test {
-    useJUnitPlatform()
+    apply(plugin = "java")
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    tasks.withType<Test>().configureEach {
+        useJUnitPlatform()
+    }
+
+    dependencies {
+        testImplementation(platform("org.junit:junit-bom:5.10.0"))
+        testImplementation("org.junit.jupiter:junit-jupiter")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    }
 }

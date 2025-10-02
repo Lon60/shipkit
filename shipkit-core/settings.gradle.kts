@@ -1,3 +1,10 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 rootProject.name = "shipkit-core"
 include(
     "shipkit-app",
@@ -8,5 +15,3 @@ include(
     "shipkit-templates",
     "shipkit-k8s-adapter"
 )
-
-include("buildSrc")

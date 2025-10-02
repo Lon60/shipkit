@@ -1,18 +1,13 @@
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+
 plugins {
-    java
-    id("org.springframework.boot") version "3.5.6"
-    id("io.spring.dependency-management") version "1.1.7"
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.spring.dependency.management)
 }
 
 group = "com.shipkit"
 version = "0.2.0-SNAPSHOT"
 description = "shipkit-app"
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-}
 
 configurations {
     compileOnly {
@@ -20,21 +15,17 @@ configurations {
     }
 }
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    compileOnly("org.projectlombok:lombok")
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("org.postgresql:postgresql")
-    annotationProcessor("org.projectlombok:lombok")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    implementation(libs.spring.boot.starter.data.jpa)
+    developmentOnly(libs.spring.boot.devtools)
+    runtimeOnly(libs.postgres)
+    testImplementation(libs.spring.boot.starter.test)
     implementation(project(":shipkit-api"))
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+tasks.named<BootJar>("bootJar") {
+    enabled = false
+}
+tasks.named<Jar>("jar") {
+    enabled = true
 }
