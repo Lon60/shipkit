@@ -8,3 +8,10 @@ include(
     "shipkit-templates",
     "shipkit-k8s-adapter"
 )
+
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
