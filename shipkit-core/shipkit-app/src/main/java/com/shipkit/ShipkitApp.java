@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @EntityScan("com.shipkit.api")
 @EnableJpaRepositories("com.shipkit.api")
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.shipkit")
 public class ShipkitApp {
 
     static void main(String[] args) {
