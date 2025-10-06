@@ -27,6 +27,10 @@ subprojects {
         }
     }
 
+    dependencies {
+        implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
+    }
+
     repositories {
         mavenCentral()
     }
