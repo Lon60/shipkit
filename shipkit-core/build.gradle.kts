@@ -30,4 +30,11 @@ subprojects {
     repositories {
         mavenCentral()
     }
+
+    tasks.withType(Test::class.java).configureEach {
+        useJUnitPlatform()
+        testLogging {
+            events("passed", "skipped", "failed")
+        }
+    }
 }
