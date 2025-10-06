@@ -5,10 +5,12 @@ import com.shipkit.usecase.DeployUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController("/deployment")
+@RestController
 @RequiredArgsConstructor
+@RequestMapping("/deployment")
 public class DeploymentController {
 
     private final DeployUseCase deploy;

@@ -5,5 +5,6 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.postgresql:postgresql")
     implementation(project(":shipkit-api"))
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     runtimeOnly(project(":shipkit-web"))
 }
