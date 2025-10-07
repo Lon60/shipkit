@@ -1,11 +1,8 @@
+version = "0.2.0-SNAPSHOT"
+
 plugins {
     java
-    alias(libs.plugins.springBoot)
-    alias(libs.plugins.springDependencyManagement)
-    alias(libs.plugins.lombok)
 }
-
-version = "0.2.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -13,12 +10,8 @@ repositories {
 
 subprojects {
     version = rootProject.version
-
     apply {
         plugin("java")
-        plugin("io.spring.dependency-management")
-        plugin("org.springframework.boot")
-        plugin("io.freefair.lombok")
     }
 
     java {
@@ -37,4 +30,17 @@ subprojects {
             events("passed", "skipped", "failed")
         }
     }
+}
+
+tasks.register("bootJar") {
+    dependsOn(":shipkit-app:bootJar")
+    dependsOn("assembleBootJar")
+    group = "build"
+    description = "Delegates to shipkit-app's bootJar"
+}
+
+tasks.register<Copy>("assembleBootJar") {
+    dependsOn(":shipkit-app:bootJar")
+    from(project(":shipkit-app").layout.buildDirectory.dir("libs"))
+    into(layout.buildDirectory.dir("libs"))
 }

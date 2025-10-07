@@ -1,3 +1,11 @@
+import org.springframework.boot.gradle.tasks.bundling.BootJar
+
+plugins {
+    alias(libs.plugins.springBoot)
+    alias(libs.plugins.springDependencyManagement)
+    alias(libs.plugins.lombok)
+}
+
 dependencies {
     // main
     implementation(libs.springboot.core)
@@ -12,4 +20,16 @@ dependencies {
 
     // testing
     testImplementation(libs.springboot.test)
+}
+
+tasks.named<BootJar>("bootJar") {
+    archiveFileName.set("${rootProject.name}-${version}.jar")
+}
+
+springBoot {
+    mainClass.set("com.shipkit.ShipkitApp")
+}
+
+tasks.withType<BootJar> {
+    mainClass.set("com.shipkit.ShipkitApp")
 }
