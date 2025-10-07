@@ -1,7 +1,11 @@
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    // main
+    implementation(libs.springboot.web)
+
+    // internal
     implementation(project(":shipkit-api"))
     implementation(project(":shipkit-app"))
 
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // testing
+    testImplementation(libs.springboot.test)
 }

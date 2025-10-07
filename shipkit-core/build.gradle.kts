@@ -1,11 +1,11 @@
-version = "0.2.0-SNAPSHOT"
-
 plugins {
     java
-    id("org.springframework.boot") version "3.5.6"
-    id("io.spring.dependency-management") version "1.1.7"
-    id("io.freefair.lombok") version "9.0.0"
+    alias(libs.plugins.springBoot)
+    alias(libs.plugins.springDependencyManagement)
+    alias(libs.plugins.lombok)
 }
+
+version = "0.2.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -25,10 +25,6 @@ subprojects {
         toolchain {
             languageVersion = JavaLanguageVersion.of(25)
         }
-    }
-
-    dependencies {
-        implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
     }
 
     repositories {

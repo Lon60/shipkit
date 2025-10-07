@@ -1,17 +1,15 @@
 dependencies {
     // main
-    implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.flywaydb:flyway-core")
-    implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("org.postgresql:postgresql")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui")
+    implementation(libs.springboot.core)
+    implementation(libs.springboot.jpa)
+    implementation(libs.springboot.actuator)
+    implementation(libs.bundles.db.essentials)
+    implementation(libs.springDocStarter)
 
     // internal
     implementation(project(":shipkit-api"))
     runtimeOnly(project(":shipkit-web"))
 
     // testing
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation(libs.springboot.test)
 }

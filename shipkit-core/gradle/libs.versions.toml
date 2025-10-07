@@ -1,0 +1,24 @@
+[versions]
+springBoot = "3.5.6"
+springDependencyManagement = "1.1.7"
+springdoc = "2.8.13"
+lombok = "9.0.0"
+
+[plugins]
+springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }
+springDependencyManagement = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
+lombok = { id = "io.freefair.lombok", version.ref = "lombok"}
+
+[libraries]
+springDocStarter = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+flyway-core = { module = "org.flywaydb:flyway-core" }
+flyway-postgres = { module = "org.flywaydb:flyway-database-postgresql" }
+postgres-driver = { module = "org.postgresql:postgresql" }
+springboot-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+springboot-core = { module = "org.springframework.boot:spring-boot-starter" }
+springboot-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+springboot-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+springboot-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+
+[bundles]
+db-essentials = ["flyway-core", "flyway-postgres", "postgres-driver"]
