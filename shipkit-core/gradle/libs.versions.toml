@@ -3,6 +3,7 @@ springBoot = "3.5.6"
 springDependencyManagement = "1.1.7"
 springdoc = "2.8.13"
 lombok = "9.0.0"
+junit = "5.11.4"
 
 [plugins]
 springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }
@@ -19,6 +20,8 @@ springboot-core = { module = "org.springframework.boot:spring-boot-starter" }
 springboot-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 springboot-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 springboot-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 
 [bundles]
 db-essentials = ["flyway-core", "flyway-postgres", "postgres-driver"]
