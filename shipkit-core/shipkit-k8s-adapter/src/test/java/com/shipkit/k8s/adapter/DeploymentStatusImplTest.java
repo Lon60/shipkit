@@ -17,11 +17,11 @@ class DeploymentStatusImplTest {
             .statusMessage("Deployment is available")
             .build();
         
-        assertEquals(3, status.getReplicas());
-        assertEquals(3, status.getReadyReplicas());
-        assertEquals(3, status.getAvailableReplicas());
-        assertTrue(status.isAvailable());
-        assertEquals("Deployment is available", status.getStatusMessage());
+        assertEquals(3, status.replicas());
+        assertEquals(3, status.readyReplicas());
+        assertEquals(3, status.availableReplicas());
+        assertTrue(status.available());
+        assertEquals("Deployment is available", status.statusMessage());
     }
 
     @Test
@@ -34,8 +34,8 @@ class DeploymentStatusImplTest {
             .statusMessage("Waiting for replicas")
             .build();
         
-        assertEquals(3, status.getReplicas());
-        assertEquals(1, status.getReadyReplicas());
-        assertFalse(status.isAvailable());
+        assertEquals(3, status.replicas());
+        assertEquals(1, status.readyReplicas());
+        assertFalse(status.available());
     }
 }

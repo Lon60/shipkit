@@ -10,7 +10,6 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentCondition;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder;
 import io.fabric8.kubernetes.client.Config;
-import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -316,13 +315,13 @@ public class Fabric8KubernetesAdapter implements KubernetesPort {
             while (System.currentTimeMillis() - startTime < timeoutMillis) {
                 DeploymentStatus status = getDeploymentStatus(namespace, deploymentName);
                 
-                if (status.isAvailable() && status.getReadyReplicas() == status.getReplicas()) {
+                if (status.available() && status.readyReplicas() == status.replicas()) {
                     log.info("Deployment {} in namespace {} is ready", deploymentName, namespace);
                     return true;
                 }
                 
                 log.debug("Waiting for deployment {} in namespace {}: {}/{} replicas ready",
-                    deploymentName, namespace, status.getReadyReplicas(), status.getReplicas());
+                    deploymentName, namespace, status.readyReplicas(), status.replicas());
                 
                 try {
                     Thread.sleep(backoffMillis);
@@ -337,9 +336,7 @@ public class Fabric8KubernetesAdapter implements KubernetesPort {
             
             log.warn("Deployment {} in namespace {} did not become ready within timeout", deploymentName, namespace);
             return false;
-        } catch (ResourceNotFoundException e) {
-            throw e;
-        } catch (KubernetesOperationException e) {
+        } catch (ResourceNotFoundException | KubernetesOperationException e) {
             throw e;
         } catch (Exception e) {
             throw new KubernetesOperationException(

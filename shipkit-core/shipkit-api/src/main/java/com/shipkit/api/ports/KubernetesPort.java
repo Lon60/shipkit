@@ -124,10 +124,10 @@ public interface KubernetesPort {
      * Represents the status of a Kubernetes Deployment.
      */
     interface DeploymentStatus {
-        int getReplicas();
-        int getReadyReplicas();
-        int getAvailableReplicas();
-        boolean isAvailable();
-        String getStatusMessage();
+        int replicas();
+        int readyReplicas();
+        int availableReplicas();
+        boolean available();
+        String statusMessage();
     }
 }

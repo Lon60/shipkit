@@ -19,16 +19,16 @@ import java.util.Map;
  */
 public class BasicUsageExample {
 
-    public static void main(String[] args) {
+    static void main() {
         // Initialize the adapter (use in-cluster config in production, false for local dev)
-        KubernetesPort k8sPort = new Fabric8KubernetesAdapter(false, null);
+        Fabric8KubernetesAdapter adapter = new Fabric8KubernetesAdapter(false, null);
         
         String namespace = "shipkit-demo";
         
         try {
             // 1. Create namespace
             System.out.println("Creating namespace: " + namespace);
-            k8sPort.createNamespace(namespace);
+            adapter.createNamespace(namespace);
             
             // 2. Apply nginx deployment
             String deploymentYaml = """
@@ -60,17 +60,17 @@ public class BasicUsageExample {
                 """;
             
             System.out.println("Applying deployment...");
-            Map<String, String> applied = k8sPort.applyManifest(namespace, deploymentYaml);
+            Map<String, String> applied = adapter.applyManifest(namespace, deploymentYaml);
             System.out.println("Applied resources: " + applied);
             
             // 3. Create service
             System.out.println("Creating service...");
             Map<String, String> selector = Map.of("app", "nginx-demo");
-            k8sPort.createOrUpdateService(namespace, "nginx-demo-service", selector, 80, 80);
+            adapter.createOrUpdateService(namespace, "nginx-demo-service", selector, 80, 80);
             
             // 4. Create ingress (optional - requires ingress controller)
             System.out.println("Creating ingress...");
-            k8sPort.createOrUpdateIngress(
+            adapter.createOrUpdateIngress(
                 namespace,
                 "nginx-demo-ingress",
                 "nginx-demo.local",
@@ -83,38 +83,35 @@ public class BasicUsageExample {
             
             // 5. Wait for deployment to be ready
             System.out.println("Waiting for deployment to be ready...");
-            boolean ready = k8sPort.waitForDeploymentReady(namespace, "nginx-demo", Duration.ofMinutes(5));
+            boolean ready = adapter.waitForDeploymentReady(namespace, "nginx-demo", Duration.ofMinutes(5));
             
             if (ready) {
                 System.out.println("✓ Deployment is ready!");
                 
                 // Check status
-                KubernetesPort.DeploymentStatus status = k8sPort.getDeploymentStatus(namespace, "nginx-demo");
+                KubernetesPort.DeploymentStatus status = adapter.getDeploymentStatus(namespace, "nginx-demo");
                 System.out.println("Status:");
-                System.out.println("  - Replicas: " + status.getReplicas());
-                System.out.println("  - Ready: " + status.getReadyReplicas());
-                System.out.println("  - Available: " + status.getAvailableReplicas());
-                System.out.println("  - Message: " + status.getStatusMessage());
+                System.out.println("  - Replicas: " + status.replicas());
+                System.out.println("  - Ready: " + status.readyReplicas());
+                System.out.println("  - Available: " + status.availableReplicas());
+                System.out.println("  - Message: " + status.statusMessage());
             } else {
                 System.out.println("✗ Deployment did not become ready in time");
             }
             
             // Cleanup (comment out to keep resources)
             System.out.println("\nCleaning up...");
-            k8sPort.deleteResource(namespace, "Ingress", "nginx-demo-ingress");
-            k8sPort.deleteResource(namespace, "Service", "nginx-demo-service");
-            k8sPort.deleteResource(namespace, "Deployment", "nginx-demo");
-            k8sPort.deleteNamespace(namespace);
+            adapter.deleteResource(namespace, "Ingress", "nginx-demo-ingress");
+            adapter.deleteResource(namespace, "Service", "nginx-demo-service");
+            adapter.deleteResource(namespace, "Deployment", "nginx-demo");
+            adapter.deleteNamespace(namespace);
             System.out.println("Cleanup complete");
             
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace();
         } finally {
-            // Always close the adapter
-            if (k8sPort instanceof Fabric8KubernetesAdapter adapter) {
-                adapter.close();
-            }
+            adapter.close();
         }
     }
 }
